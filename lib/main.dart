@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'shared/theme/app_theme.dart';
+import 'features/expense/screens/expense_list_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -14,7 +15,7 @@ class MyApp extends StatelessWidget {
       title: 'Expense Tracker',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const Placeholder(),
+      home: const ExpenseListScreen(), //  THIS IS CRITICAL
     );
   }
 }
