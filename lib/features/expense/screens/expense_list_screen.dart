@@ -30,7 +30,7 @@ class ExpenseListScreen extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Day 4: Navigate to Add Expense screen
+          Navigator.pushNamed(context, '/add-expense');
         },
         child: const Icon(Icons.add),
       ),
