@@ -24,7 +24,10 @@ class DashboardScreen extends StatelessWidget {
         builder: (context, constraints) {
           final isMobile = constraints.maxWidth < 600;
           return SingleChildScrollView(
-            padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 32, vertical: 24),
+            padding: EdgeInsets.symmetric(
+              horizontal: isMobile ? 16 : 32,
+              vertical: 24,
+            ),
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 480),
@@ -34,7 +37,9 @@ class DashboardScreen extends StatelessWidget {
                     // Total Expenses Card
                     Card(
                       color: Colors.teal[600],
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                       elevation: 6,
                       child: Padding(
                         padding: const EdgeInsets.all(24),
@@ -43,12 +48,19 @@ class DashboardScreen extends StatelessWidget {
                           children: [
                             const Text(
                               'Total Expenses',
-                              style: TextStyle(color: Colors.white70, fontSize: 16),
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 16,
+                              ),
                             ),
                             const SizedBox(height: 8),
                             Text(
                               'Rs ${totalAmount.toStringAsFixed(2)}',
-                              style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ],
                         ),
@@ -69,21 +81,56 @@ class DashboardScreen extends StatelessWidget {
                             physics: const NeverScrollableScrollPhysics(),
                             shrinkWrap: true,
                             itemCount: expenses.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 12),
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 12),
                             itemBuilder: (context, index) {
                               final e = expenses[index];
-                              return Card(
-                                elevation: 2,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                child: ListTile(
-                                  title: Text(
-                                    e.title,
-                                    style: const TextStyle(fontWeight: FontWeight.w600),
+                              return Dismissible(
+                                key: Key(e.id),
+                                direction: DismissDirection.endToStart,
+                                onDismissed: (_) {
+                                  context.read<ExpenseProvider>().removeExpense(
+                                    e.id,
+                                  );
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Deleted ${e.title}'),
+                                    ),
+                                  );
+                                },
+                                background: Container(
+                                  padding: const EdgeInsets.only(right: 20),
+                                  alignment: Alignment.centerRight,
+                                  decoration: BoxDecoration(
+                                    color: Colors.red[400],
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
-                                  subtitle: Text('${e.category} • ${_formatDate(e.date)}'),
-                                  trailing: Text(
-                                    'Rs ${e.amount.toStringAsFixed(2)}',
-                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  child: const Icon(
+                                    Icons.delete,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                child: Card(
+                                  elevation: 2,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: ListTile(
+                                    title: Text(
+                                      e.title,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      '${e.category} • ${_formatDate(e.date)}',
+                                    ),
+                                    trailing: Text(
+                                      'Rs ${e.amount.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               );

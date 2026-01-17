@@ -26,7 +26,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _amountController = TextEditingController();
-  final List<String> _categories = ['Food', 'Transport', 'Bills', 'Shopping', 'Other'];
+  final List<String> _categories = [
+    'Food',
+    'Transport',
+    'Bills',
+    'Shopping',
+    'Other',
+  ];
   String? _selectedCategory;
   DateTime _selectedDate = DateTime.now();
 
@@ -50,41 +56,37 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     }
   }
 
- void _saveExpense() {
-  if (_formKey.currentState!.validate()) {
-    final title = _titleController.text.trim();
-    final amount = double.parse(_amountController.text.trim());
-    final category = _selectedCategory!;
-    final date = _selectedDate;
+  void _saveExpense() {
+    if (_formKey.currentState!.validate()) {
+      final title = _titleController.text;
+      final amount = double.parse(_amountController.text);
+      final category = _selectedCategory ?? 'Other';
 
-    // Add expense to provider
-    final provider = context.read<ExpenseProvider>();
-    provider.addExpense(title: title, amount: amount, category: category, date: date);
+      // Add to provider
+      context.read<ExpenseProvider>().addExpense(
+        title: title,
+        amount: amount,
+        category: category,
+        date: _selectedDate,
+      );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Expense saved successfully'),
-        duration: Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+      // Log and show SnackBar
+      logger.i(
+        'Expense Saved | Title: $title, Amount: $amount, Category: $category, Date: $_selectedDate',
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Expense saved successfully'),
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
 
-    // Clear form for next input
-    _formKey.currentState!.reset();
-    _titleController.clear();
-    _amountController.clear();
-    setState(() {
-      _selectedCategory = null;
-      _selectedDate = DateTime.now();
-    });
-
-    // Close screen shortly after
-    Future.delayed(const Duration(milliseconds: 600), () {
-      if (mounted) Navigator.pop(context);
-    });
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (mounted) Navigator.pop(context);
+      });
+    }
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -103,7 +105,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             final isMobile = constraints.maxWidth < 600;
 
             return SingleChildScrollView(
-              padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24, vertical: 24),
+              padding: EdgeInsets.symmetric(
+                horizontal: isMobile ? 16 : 24,
+                vertical: 24,
+              ),
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 480),
@@ -145,7 +150,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     return TextFormField(
       controller: _titleController,
       decoration: _inputDecoration(label: 'Title', hint: 'Enter expense title'),
-      validator: (value) => value == null || value.trim().isEmpty ? 'Title is required' : null,
+      validator: (value) =>
+          value == null || value.trim().isEmpty ? 'Title is required' : null,
     );
   }
 
@@ -153,7 +159,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     return TextFormField(
       controller: _amountController,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: _inputDecoration(label: 'Amount', hint: 'Enter amount', prefix: 'Rs '),
+      decoration: _inputDecoration(
+        label: 'Amount',
+        hint: 'Enter amount',
+        prefix: 'Rs ',
+      ),
       validator: (value) {
         if (value == null || value.trim().isEmpty) return 'Amount is required';
         if (double.tryParse(value) == null) return 'Enter a valid number';
@@ -166,7 +176,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     return DropdownButtonFormField<String>(
       value: _selectedCategory,
       decoration: _inputDecoration(label: 'Category'),
-      items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+      items: _categories
+          .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+          .toList(),
       onChanged: (v) => setState(() => _selectedCategory = v),
       validator: (v) => v == null ? 'Select a category' : null,
     );
@@ -180,7 +192,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}'),
+            Text(
+              '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+            ),
             const Icon(Icons.calendar_today),
           ],
         ),
@@ -196,14 +210,23 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.teal[600],
           padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
-        child: const Text('Save Expense', style: TextStyle(fontSize: 18, color: Colors.white)),
+        child: const Text(
+          'Save Expense',
+          style: TextStyle(fontSize: 18, color: Colors.white),
+        ),
       ),
     );
   }
 
-  InputDecoration _inputDecoration({required String label, String? hint, String? prefix}) {
+  InputDecoration _inputDecoration({
+    required String label,
+    String? hint,
+    String? prefix,
+  }) {
     return InputDecoration(
       labelText: label,
       hintText: hint,
