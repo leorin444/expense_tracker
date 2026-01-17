@@ -1,38 +1,89 @@
 import 'package:flutter/material.dart';
-import '../../../core/constants/app_strings.dart';
+import 'package:provider/provider.dart';
+import '../providers/expense_provider.dart';
+import 'add_expense_screen.dart';
 
 class ExpenseListScreen extends StatelessWidget {
   const ExpenseListScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.appName)),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final isWide = constraints.maxWidth > 600;
+    final expenses = context.watch<ExpenseProvider>().expenses;
 
-          return Padding(
-            padding: const EdgeInsets.all(16),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: isWide ? 600 : double.infinity,
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Expenses'),
+        centerTitle: true,
+        backgroundColor: Colors.teal[600],
+        elevation: 0,
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFFE0F7FA), Color(0xFFFFFFFF)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: expenses.isEmpty
+            ? const Center(
+                child: Text(
+                  'No expenses yet.\nTap + to add your first expense!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 18, color: Colors.grey),
                 ),
-                child: const Text(
-                  'Your expenses will appear here',
-                  style: TextStyle(fontSize: 16),
-                ),
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: expenses.length,
+                itemBuilder: (context, index) {
+                  final e = expenses[index];
+                  return Card(
+                    elevation: 4,
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      title: Text(
+                        e.title,
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        '${e.category} • ${e.date.day}/${e.date.month}/${e.date.year}',
+                        style: const TextStyle(color: Colors.grey),
+                      ),
+                      trailing: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.teal[50],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'Rs ${e.amount.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            color: Colors.teal[700],
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
-            ),
-          );
-        },
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Navigator.pushNamed(context, '/add-expense');
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AddExpenseScreen()),
+          );
         },
-        child: const Icon(Icons.add),
+        backgroundColor: Colors.teal[600],
+        child: const Icon(Icons.add, size: 28),
       ),
     );
   }

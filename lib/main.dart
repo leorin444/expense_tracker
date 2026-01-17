@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
-import 'shared/theme/app_theme.dart';
+import 'package:provider/provider.dart';
+import 'features/expense/providers/expense_provider.dart';
+import 'features/expense/screens/dashboard_screen.dart';
 import 'features/expense/screens/expense_list_screen.dart';
-import 'features/expense/screens/add_expense_screen.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => ExpenseProvider(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -14,13 +20,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Expense Tracker',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      initialRoute: '/',
-      routes: {
-        '/': (context) => ExpenseListScreen(),
-        '/add-expense': (context) => AddExpenseScreen(),
-      },
+      theme: ThemeData(primarySwatch: Colors.teal),
+      home:  DashboardScreen(),
     );
   }
 }
