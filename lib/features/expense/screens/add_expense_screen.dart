@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 
@@ -11,7 +12,10 @@ final logger = Logger(
   ),
 );
 
+
 class AddExpenseScreen extends StatefulWidget {
+  const AddExpenseScreen({super.key});
+
   @override
   State<AddExpenseScreen> createState() => _AddExpenseScreenState();
 }
@@ -55,28 +59,22 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   void _saveExpense() {
     if (_formKey.currentState!.validate()) {
-      final title = _titleController.text;
-      final amount = _amountController.text;
-
-      // 1️⃣ Log for developers
       logger.i(
         'Expense Saved | '
-        'Title: $title, '
-        'Amount: $amount, '
+        'Title: ${_titleController.text}, '
+        'Amount: ${_amountController.text}, '
         'Category: $_selectedCategory, '
         'Date: $_selectedDate',
       );
 
-      // 2️⃣ Show user-facing message
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Expense saved successfully'),
-          duration: const Duration(seconds: 2),
+        const SnackBar(
+          content: Text('Expense saved successfully'),
+          duration: Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
         ),
       );
 
-      // 3️⃣ Close screen after snackbar shows briefly
       Future.delayed(const Duration(milliseconds: 600), () {
         if (mounted) Navigator.pop(context);
       });
@@ -85,129 +83,142 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        title: const Text('Add Expense'),
-        centerTitle: true,
-        backgroundColor: Colors.teal[600],
-        elevation: 0,
-      ),
-      body: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Card(
-            elevation: 6,
-            shadowColor: Colors.black26,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    /// TITLE
-                    TextFormField(
-                      controller: _titleController,
-                      decoration: _inputDecoration(
-                        label: 'Title',
-                        hint: 'Enter expense title',
+    return SafeArea(
+      child: Scaffold(
+        backgroundColor: Colors.grey[100],
+        appBar: AppBar(
+          title: const Text('Add Expense'),
+          centerTitle: true,
+          backgroundColor: Colors.teal[600],
+          elevation: 0,
+        ),
+        body: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isMobile = constraints.maxWidth < 600;
+
+              return SingleChildScrollView(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 16 : 24,
+                  vertical: 24,
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 480),
+                    child: Card(
+                      elevation: 6,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      validator: (value) =>
-                          value == null || value.trim().isEmpty
-                          ? 'Title is required'
-                          : null,
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    /// AMOUNT
-                    TextFormField(
-                      controller: _amountController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: _inputDecoration(
-                        label: 'Amount',
-                        hint: 'Enter amount',
-                        prefix: '\$ ',
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Amount is required';
-                        }
-                        if (double.tryParse(value) == null) {
-                          return 'Enter a valid number';
-                        }
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    /// CATEGORY
-                    DropdownButtonFormField<String>(
-                      value: _selectedCategory,
-                      decoration: _inputDecoration(label: 'Category'),
-                      items: _categories
-                          .map(
-                            (c) => DropdownMenuItem(value: c, child: Text(c)),
-                          )
-                          .toList(),
-                      onChanged: (value) =>
-                          setState(() => _selectedCategory = value),
-                      validator: (value) =>
-                          value == null ? 'Select a category' : null,
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    /// DATE
-                    InkWell(
-                      onTap: _pickDate,
-                      child: InputDecorator(
-                        decoration: _inputDecoration(label: 'Date'),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                              style: const TextStyle(fontSize: 16),
-                            ),
-                            const Icon(Icons.calendar_today),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 30),
-
-                    /// SAVE BUTTON
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _saveExpense,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.teal[600],
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            children: [
+                              _buildTitleField(),
+                              const SizedBox(height: 20),
+                              _buildAmountField(),
+                              const SizedBox(height: 20),
+                              _buildCategoryField(),
+                              const SizedBox(height: 20),
+                              _buildDatePicker(),
+                              const SizedBox(height: 30),
+                              _buildSaveButton(),
+                            ],
                           ),
                         ),
-                        child: const Text(
-                          'Save Expense',
-                          style: TextStyle(fontSize: 18, color: Colors.white),
-                        ),
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTitleField() {
+    return TextFormField(
+      controller: _titleController,
+      decoration: _inputDecoration(
+        label: 'Title',
+        hint: 'Enter expense title',
+      ),
+      validator: (value) =>
+          value == null || value.trim().isEmpty ? 'Title is required' : null,
+    );
+  }
+
+  Widget _buildAmountField() {
+    return TextFormField(
+      controller: _amountController,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      decoration: _inputDecoration(
+        label: 'Amount',
+        hint: 'Enter amount',
+        prefix: 'Rs ',
+      ),
+      validator: (value) {
+        if (value == null || value.trim().isEmpty) {
+          return 'Amount is required';
+        }
+        if (double.tryParse(value) == null) {
+          return 'Enter a valid number';
+        }
+        return null;
+      },
+    );
+  }
+
+  Widget _buildCategoryField() {
+    return DropdownButtonFormField<String>(
+      value: _selectedCategory,
+      decoration: _inputDecoration(label: 'Category'),
+      items: _categories
+          .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+          .toList(),
+      onChanged: (value) => setState(() => _selectedCategory = value),
+      validator: (value) => value == null ? 'Select a category' : null,
+    );
+  }
+
+  Widget _buildDatePicker() {
+    return InkWell(
+      onTap: _pickDate,
+      child: InputDecorator(
+        decoration: _inputDecoration(label: 'Date'),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+            ),
+            const Icon(Icons.calendar_today),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSaveButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _saveExpense,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.teal[600],
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: const Text(
+          'Save Expense',
+          style: TextStyle(fontSize: 18, color: Colors.white),
         ),
       ),
     );
