@@ -70,12 +70,25 @@ class DashboardScreen extends StatelessWidget {
 
                     // Expense List
                     expenses.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'No expenses yet.\nTap + to add one.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 16),
-                            ),
+                        ? Column(
+                            children: [
+                              const SizedBox(height: 60),
+                              Icon(
+                                Icons.receipt_long,
+                                size: 80,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No expenses yet',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Tap + to add your first expense',
+                                style: TextStyle(color: Colors.grey[600]),
+                              ),
+                            ],
                           )
                         : ListView.separated(
                             physics: const NeverScrollableScrollPhysics(),
@@ -85,24 +98,17 @@ class DashboardScreen extends StatelessWidget {
                                 const SizedBox(height: 12),
                             itemBuilder: (context, index) {
                               final e = expenses[index];
+
                               return Dismissible(
-                                key: Key(e.id),
+                                key: ValueKey(e.id),
                                 direction: DismissDirection.endToStart,
-                                onDismissed: (_) {
-                                  context.read<ExpenseProvider>().removeExpense(
-                                    e.id,
-                                  );
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Deleted ${e.title}'),
-                                    ),
-                                  );
-                                },
                                 background: Container(
-                                  padding: const EdgeInsets.only(right: 20),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                  ),
                                   alignment: Alignment.centerRight,
                                   decoration: BoxDecoration(
-                                    color: Colors.red[400],
+                                    color: Colors.red[600],
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: const Icon(
@@ -110,12 +116,49 @@ class DashboardScreen extends StatelessWidget {
                                     color: Colors.white,
                                   ),
                                 ),
+                                onDismissed: (_) {
+                                  final provider = context
+                                      .read<ExpenseProvider>();
+                                  provider.removeExpense(e.id);
+
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: const Text('Expense deleted'),
+                                      action: SnackBarAction(
+                                        label: 'UNDO',
+                                        onPressed: () {
+                                          provider.addExpense(
+                                            title: e.title,
+                                            amount: e.amount,
+                                            category: e.category,
+                                            date: e.date,
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  );
+                                },
                                 child: Card(
-                                  elevation: 2,
+                                  elevation: 3,
+                                  shadowColor: Colors.black12,
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(14),
                                   ),
                                   child: ListTile(
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
+                                    leading: CircleAvatar(
+                                      backgroundColor: _categoryColor(
+                                        e.category,
+                                      ).withOpacity(0.15),
+                                      child: Icon(
+                                        _categoryIcon(e.category),
+                                        color: _categoryColor(e.category),
+                                      ),
+                                    ),
+
                                     title: Text(
                                       e.title,
                                       style: const TextStyle(
@@ -129,6 +172,7 @@ class DashboardScreen extends StatelessWidget {
                                       'Rs ${e.amount.toStringAsFixed(2)}',
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
+                                        fontSize: 15,
                                       ),
                                     ),
                                   ),
@@ -156,5 +200,35 @@ class DashboardScreen extends StatelessWidget {
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
+  }
+
+  IconData _categoryIcon(String category) {
+    switch (category) {
+      case 'Food':
+        return Icons.restaurant;
+      case 'Transport':
+        return Icons.directions_car;
+      case 'Bills':
+        return Icons.receipt;
+      case 'Shopping':
+        return Icons.shopping_bag;
+      default:
+        return Icons.category;
+    }
+  }
+
+  Color _categoryColor(String category) {
+    switch (category) {
+      case 'Food':
+        return Colors.orange;
+      case 'Transport':
+        return Colors.blue;
+      case 'Bills':
+        return Colors.red;
+      case 'Shopping':
+        return Colors.purple;
+      default:
+        return Colors.grey;
+    }
   }
 }
