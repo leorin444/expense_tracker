@@ -10,7 +10,15 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final expenses = context.watch<ExpenseProvider>().expenses;
+
+    // Total expenses overall
     final totalAmount = expenses.fold<double>(0, (sum, e) => sum + e.amount);
+
+    // Total expenses for current month
+    final now = DateTime.now();
+    final monthlyTotal = expenses
+        .where((e) => e.date.month == now.month && e.date.year == now.year)
+        .fold<double>(0, (sum, e) => sum + e.amount);
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -67,7 +75,35 @@ class DashboardScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 24),
+                    // This Month Card
+                    Card(
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'This Month',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Rs ${monthlyTotal.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
 
+                    const SizedBox(height: 24),
                     // Expense List
                     expenses.isEmpty
                         ? Column(
@@ -158,7 +194,6 @@ class DashboardScreen extends StatelessWidget {
                                         color: _categoryColor(e.category),
                                       ),
                                     ),
-
                                     title: Text(
                                       e.title,
                                       style: const TextStyle(
