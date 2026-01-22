@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/expense_provider.dart';
-import 'add_expense_screen.dart';
+import 'expense_form_screen.dart';
 
 class ExpenseListScreen extends StatelessWidget {
   const ExpenseListScreen({super.key});
@@ -45,11 +45,22 @@ class ExpenseListScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ExpenseFormScreen(expense: e),
+                        ),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
                       title: Text(
                         e.title,
                         style: const TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       subtitle: Text(
                         '${e.category} • ${e.date.day}/${e.date.month}/${e.date.year}',
@@ -57,7 +68,9 @@ class ExpenseListScreen extends StatelessWidget {
                       ),
                       trailing: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.teal[50],
                           borderRadius: BorderRadius.circular(12),
@@ -76,12 +89,10 @@ class ExpenseListScreen extends StatelessWidget {
               ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const AddExpenseScreen()),
-          );
-        },
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ExpenseFormScreen()),
+        ),
         backgroundColor: Colors.teal[600],
         child: const Icon(Icons.add, size: 28),
       ),

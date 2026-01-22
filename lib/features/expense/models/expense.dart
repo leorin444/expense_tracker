@@ -1,9 +1,23 @@
-class Expense {
-  final String id;
-  final String title;
-  final double amount;
-  final String category;
-  final DateTime date;
+import 'package:hive/hive.dart';
+
+part 'expense.g.dart';
+
+@HiveType(typeId: 0)
+class Expense extends HiveObject {
+  @HiveField(0)
+  String id;
+
+  @HiveField(1)
+  String title;
+
+  @HiveField(2)
+  double amount;
+
+  @HiveField(3)
+  String category;
+
+  @HiveField(4)
+  DateTime date;
 
   Expense({
     required this.id,
@@ -12,26 +26,4 @@ class Expense {
     required this.category,
     required this.date,
   });
-
-  /// Convert to JSON (for API later)
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'amount': amount,
-      'category': category,
-      'date': date.toIso8601String(),
-    };
-  }
-
-  /// Create from JSON (from API later)
-  factory Expense.fromJson(Map<String, dynamic> json) {
-    return Expense(
-      id: json['id'],
-      title: json['title'],
-      amount: (json['amount'] as num).toDouble(),
-      category: json['category'],
-      date: DateTime.parse(json['date']),
-    );
-  }
 }

@@ -1,69 +1,79 @@
 import 'package:flutter/material.dart';
-import 'package:logger/logger.dart';
-import 'package:uuid/uuid.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../models/expense.dart';
+import 'package:uuid/uuid.dart';
 
-final _logger = Logger();
-
-class ExpenseProvider extends ChangeNotifier {
+class ExpenseProvider with ChangeNotifier {
   final List<Expense> _expenses = [];
   final _uuid = const Uuid();
+  late Box<Expense> _box;
 
-  /// Immutable list for UI
+  bool _isAdding = false;
+
+  ExpenseProvider() {
+    _init();
+  }
+
+  Future<void> _init() async {
+    _box = Hive.box<Expense>('expensesBox');
+    _expenses.addAll(_box.values.toList().reversed); // most recent first
+    notifyListeners();
+  }
+
   List<Expense> get expenses => List.unmodifiable(_expenses);
 
-  /// Total of all expenses
-  double get totalAmount => _expenses.fold(0, (sum, e) => sum + e.amount);
-
-  /// Add new expense
   void addExpense({
     required String title,
     required double amount,
     required String category,
     required DateTime date,
   }) {
-    final expense = Expense(
+    if (_isAdding) return;
+    _isAdding = true;
+
+    final newExpense = Expense(
       id: _uuid.v4(),
-      title: title.trim(),
+      title: title,
       amount: amount,
       category: category,
       date: date,
     );
 
-    _expenses.insert(0, expense);
-    _logger.i('Expense added: ${expense.toJson()}');
+    _expenses.insert(0, newExpense);
+    _box.put(newExpense.id, newExpense);
+
     notifyListeners();
+
+    Future.microtask(() => _isAdding = false);
   }
 
-  /// Remove expense
-  void removeExpense(String id) {
+  void updateExpense({
+    required String id,
+    required String title,
+    required double amount,
+    required String category,
+    required DateTime date,
+  }) {
     final index = _expenses.indexWhere((e) => e.id == id);
     if (index == -1) return;
 
-    final removed = _expenses.removeAt(index);
-    _logger.w('Expense removed: ${removed.toJson()}');
+    final updatedExpense = Expense(
+      id: id,
+      title: title,
+      amount: amount,
+      category: category,
+      date: date,
+    );
+
+    _expenses[index] = updatedExpense;
+    _box.put(id, updatedExpense);
+
     notifyListeners();
   }
 
-  // =========================
-  // Day 9 – Analytics helpers
-  // =========================
-
-  /// Category-wise totals
-  Map<String, double> get categoryTotals {
-    final Map<String, double> totals = {};
-
-    for (final e in _expenses) {
-      totals[e.category] = (totals[e.category] ?? 0) + e.amount;
-    }
-
-    return totals;
-  }
-
-  /// Expenses for a given month
-  List<Expense> expensesForMonth(DateTime month) {
-    return _expenses
-        .where((e) => e.date.month == month.month && e.date.year == month.year)
-        .toList();
+  void removeExpense(String id) {
+    _expenses.removeWhere((e) => e.id == id);
+    _box.delete(id);
+    notifyListeners();
   }
 }
