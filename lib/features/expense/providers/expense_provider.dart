@@ -1,36 +1,57 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import '../models/expense.dart';
 import 'package:uuid/uuid.dart';
 
 class ExpenseProvider with ChangeNotifier {
   final List<Expense> _expenses = [];
   final _uuid = const Uuid();
-  late Box<Expense> _box;
 
-  bool _isAdding = false;
+  // -------------------- USER PROFILE --------------------
+  double _monthlyLimit = 50000; // default value
+  double get monthlyLimit => _monthlyLimit;
 
-  ExpenseProvider() {
-    _init();
-  }
-
-  Future<void> _init() async {
-    _box = Hive.box<Expense>('expensesBox');
-    _expenses.addAll(_box.values.toList().reversed); // most recent first
+  void setMonthlyLimit(double limit) {
+    _monthlyLimit = limit;
     notifyListeners();
   }
 
+  // -------------------- EXPENSE LIST --------------------
   List<Expense> get expenses => List.unmodifiable(_expenses);
 
+  bool _isAdding = false;
+
+  // -------------------- ADD EXPENSE --------------------
   void addExpense({
+    required BuildContext context,
     required String title,
     required double amount,
     required String category,
     required DateTime date,
   }) {
-    if (_isAdding) return;
+    if (_isAdding) return; // prevent duplicate calls
     _isAdding = true;
 
+    // --------- Monthly limit validation ---------
+    final now = DateTime.now();
+    final monthlySpent = _expenses
+        .where((e) => e.date.year == now.year && e.date.month == now.month)
+        .fold<double>(0, (sum, e) => sum + e.amount);
+
+    if (monthlySpent + amount > _monthlyLimit) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Expense limit exceeded for this month! Limit: Rs $_monthlyLimit',
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      _isAdding = false;
+      return;
+    }
+
+    // --------- Add the expense ---------
     final newExpense = Expense(
       id: _uuid.v4(),
       title: title,
@@ -40,13 +61,12 @@ class ExpenseProvider with ChangeNotifier {
     );
 
     _expenses.insert(0, newExpense);
-    _box.put(newExpense.id, newExpense);
-
     notifyListeners();
 
     Future.microtask(() => _isAdding = false);
   }
 
+  // -------------------- UPDATE EXPENSE --------------------
   void updateExpense({
     required String id,
     required String title,
@@ -57,7 +77,7 @@ class ExpenseProvider with ChangeNotifier {
     final index = _expenses.indexWhere((e) => e.id == id);
     if (index == -1) return;
 
-    final updatedExpense = Expense(
+    _expenses[index] = Expense(
       id: id,
       title: title,
       amount: amount,
@@ -65,15 +85,12 @@ class ExpenseProvider with ChangeNotifier {
       date: date,
     );
 
-    _expenses[index] = updatedExpense;
-    _box.put(id, updatedExpense);
-
     notifyListeners();
   }
 
+  // -------------------- REMOVE EXPENSE --------------------
   void removeExpense(String id) {
     _expenses.removeWhere((e) => e.id == id);
-    _box.delete(id);
     notifyListeners();
   }
 }

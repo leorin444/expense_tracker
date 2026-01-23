@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../finance/providers/finance_provider.dart';
 import '../providers/expense_provider.dart';
-import 'expense_form_screen.dart';
 import '../models/expense.dart';
+import '../../finance/screens/finance_setup_screen.dart';
+import 'expense_form_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -10,6 +12,8 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final expenses = context.watch<ExpenseProvider>().expenses;
+    final financeProvider = context.watch<FinanceProvider>();
+    final financeProfile = financeProvider.profile;
 
     final totalAmount = expenses.fold<double>(0, (sum, e) => sum + e.amount);
 
@@ -31,7 +35,6 @@ class DashboardScreen extends StatelessWidget {
         title: const Text('Expense Tracker'),
         centerTitle: true,
         backgroundColor: Colors.teal[600],
-        elevation: 0,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
@@ -41,10 +44,30 @@ class DashboardScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _totalCard(totalAmount),
+                // ------------------ Finance Card ------------------
+                if (financeProfile == null)
+                  _setupFinanceCard(context)
+                else
+                  _financeCard(financeProfile),
+
                 const SizedBox(height: 16),
-                _monthlyCard(context, monthlyTotal),
+
+                if (financeProfile != null)
+                  _totalCard(
+                    context,
+                    totalAmount,
+                    financeProfile.spendableAmount,
+                  ),
                 const SizedBox(height: 16),
+
+                if (financeProfile != null)
+                  _monthlyCard(
+                    context,
+                    monthlyTotal,
+                    financeProfile.spendableAmount,
+                  ),
+                const SizedBox(height: 16),
+
                 if (recentExpenses.isNotEmpty) ...[
                   Text(
                     'Recent Expenses',
@@ -69,9 +92,10 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  // ------------------ EXPENSE CARD ------------------
-
+  // ------------------ Expense Card ------------------
   Widget _expenseCard(BuildContext context, Expense e) {
+    final provider = context.read<ExpenseProvider>();
+
     return Dismissible(
       key: ValueKey(e.id),
       direction: DismissDirection.endToStart,
@@ -105,28 +129,17 @@ class DashboardScreen extends StatelessWidget {
         child: const Icon(Icons.delete, color: Colors.white),
       ),
       onDismissed: (_) {
-        final provider = context.read<ExpenseProvider>();
         provider.removeExpense(e.id);
-
-        _showUndoOverlay(
-          context: context,
-          expense: e,
-          onUndo: () {
-            provider.addExpense(
-              title: e.title,
-              amount: e.amount,
-              category: e.category,
-              date: e.date,
-            );
-          },
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Expense deleted!')));
       },
       child: Card(
         elevation: 3,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         child: ListTile(
           leading: CircleAvatar(
-            backgroundColor: _categoryColor(e.category).withOpacity(0.15),
+            backgroundColor: _categoryColor(e.category).withOpacity(0.2),
             child: Icon(
               _categoryIcon(e.category),
               color: _categoryColor(e.category),
@@ -146,86 +159,123 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  // ------------------ UNDO OVERLAY ------------------
+  // ------------------ Total Card ------------------
+  Widget _totalCard(BuildContext context, double total, double spendableLimit) {
+    final progress = (total / spendableLimit).clamp(0.0, 1.0);
 
-  void _showUndoOverlay({
-    required BuildContext context,
-    required Expense expense,
-    required VoidCallback onUndo,
-  }) {
-    final overlay = Overlay.of(context);
-    late OverlayEntry entry;
+    Color progressColor;
+    String message;
 
-    entry = OverlayEntry(
-      builder: (_) => Positioned(
-        bottom: 30,
-        left: 16,
-        right: 16,
-        child: Material(
-          elevation: 6,
-          borderRadius: BorderRadius.circular(12),
-          color: Colors.grey[900],
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Expense deleted',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    onUndo();
-                    entry.remove();
-                  },
-                  child: const Text(
-                    'UNDO',
-                    style: TextStyle(color: Colors.orange),
-                  ),
-                ),
-              ],
+    if (progress >= 1) {
+      progressColor = Colors.red;
+      message = 'You exceeded your spendable amount!';
+    } else if (progress >= 0.9) {
+      progressColor = Colors.orange;
+      message = 'Near your spendable limit!';
+    } else {
+      progressColor = Colors.white;
+      message = 'You are within your limit.';
+    }
+
+    return Card(
+      color: Colors.teal[600],
+      elevation: 6,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Total Expenses',
+              style: TextStyle(color: Colors.white70),
             ),
-          ),
+            const SizedBox(height: 8),
+            Text(
+              'Rs ${total.toStringAsFixed(2)} / Rs ${spendableLimit.toStringAsFixed(2)}',
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 12,
+                backgroundColor: Colors.white24,
+                valueColor: AlwaysStoppedAnimation(progressColor),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(message, style: const TextStyle(color: Colors.white)),
+          ],
         ),
       ),
     );
-
-    overlay.insert(entry);
-
-    Future.delayed(const Duration(seconds: 5), () {
-      if (entry.mounted) entry.remove();
-    });
   }
 
-  // ------------------ UI HELPERS ------------------
+  // ------------------ Monthly Card ------------------
+  Widget _monthlyCard(
+    BuildContext context,
+    double monthlyTotal,
+    double spendableLimit,
+  ) {
+    Color cardColor;
+    String message;
 
-  Widget _totalCard(double total) => Card(
-    color: Colors.teal[600],
-    elevation: 6,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-    child: Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Total Expenses', style: TextStyle(color: Colors.white70)),
-          const SizedBox(height: 8),
-          Text(
-            'Rs ${total.toStringAsFixed(2)}',
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+    if (monthlyTotal > spendableLimit) {
+      cardColor = Colors.red[400]!;
+      message =
+          'You exceeded your spendable amount by Rs ${(monthlyTotal - spendableLimit).toStringAsFixed(2)}!';
+    } else if (monthlyTotal > 0.9 * spendableLimit) {
+      cardColor = Colors.orange[400]!;
+      message =
+          'Near your spendable limit! Rs ${(spendableLimit - monthlyTotal).toStringAsFixed(2)} remaining.';
+    } else {
+      cardColor = Colors.teal[600]!;
+      message =
+          'Within your spendable amount. Rs ${(spendableLimit - monthlyTotal).toStringAsFixed(2)} remaining.';
+    }
+
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: cardColor,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'This Month',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium!.copyWith(color: Colors.white),
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              'Rs ${monthlyTotal.toStringAsFixed(2)} / Rs ${spendableLimit.toStringAsFixed(2)}',
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              message,
+              style: const TextStyle(fontSize: 14, color: Colors.white),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 
-  Widget _monthlyCard(BuildContext context, double total) => Card(
+  Widget _financeCard(financeProfile) => Card(
     elevation: 4,
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     child: Padding(
@@ -233,13 +283,33 @@ class DashboardScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('This Month', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
           Text(
-            'Rs ${total.toStringAsFixed(2)}',
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            'Monthly Income: Rs ${financeProfile.monthlyIncome.toStringAsFixed(2)}',
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Savings (${financeProfile.savingsPercentage}%): Rs ${financeProfile.savingsAmount.toStringAsFixed(2)}',
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Spendable: Rs ${financeProfile.spendableAmount.toStringAsFixed(2)}',
+            style: const TextStyle(fontWeight: FontWeight.bold),
           ),
         ],
+      ),
+    ),
+  );
+
+  Widget _setupFinanceCard(BuildContext context) => Card(
+    elevation: 4,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    child: ListTile(
+      title: const Text('Setup your finances'),
+      subtitle: const Text('Add income & savings rules to activate adviser'),
+      trailing: const Icon(Icons.arrow_forward),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const FinanceSetupScreen()),
       ),
     ),
   );

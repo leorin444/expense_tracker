@@ -4,6 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'features/expense/providers/expense_provider.dart';
 import 'features/expense/screens/dashboard_screen.dart';
 import 'features/expense/models/expense.dart';
+import 'features/finance/providers/finance_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,8 +14,11 @@ void main() async {
   await Hive.openBox<Expense>('expensesBox');
 
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => ExpenseProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ExpenseProvider()),
+        ChangeNotifierProvider(create: (_) => FinanceProvider()),
+      ],
       child: const MyApp(),
     ),
   );

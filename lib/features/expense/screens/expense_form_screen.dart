@@ -1,18 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
+import '../../finance/providers/finance_provider.dart';
 import '../providers/expense_provider.dart';
 import '../models/expense.dart';
-
-final logger = Logger(
-  printer: PrettyPrinter(
-    methodCount: 0,
-    errorMethodCount: 5,
-    lineLength: 80,
-    colors: true,
-    printEmojis: true,
-  ),
-);
 
 class ExpenseFormScreen extends StatefulWidget {
   final Expense? expense; // Pass this for editing
@@ -38,6 +28,8 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
   String? _selectedCategory;
   DateTime _selectedDate = DateTime.now();
 
+  double? _warningAmount;
+
   @override
   void initState() {
     super.initState();
@@ -47,6 +39,22 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
     );
     _selectedCategory = widget.expense?.category;
     _selectedDate = widget.expense?.date ?? DateTime.now();
+
+    _amountController.addListener(_checkAmount);
+  }
+
+  void _checkAmount() {
+    final finance = context.read<FinanceProvider>();
+    final spendable = finance.profile?.spendableAmount ?? double.infinity;
+
+    final input = double.tryParse(_amountController.text);
+    setState(() {
+      if (input != null && input > spendable) {
+        _warningAmount = input - spendable;
+      } else {
+        _warningAmount = null;
+      }
+    });
   }
 
   @override
@@ -73,20 +81,47 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
   }
 
   void _saveExpense() {
-    if (!_formKey.currentState!.validate() || _selectedCategory == null) return;
+    if (!_formKey.currentState!.validate()) return;
 
     final provider = context.read<ExpenseProvider>();
+    final finance = context.read<FinanceProvider>();
+    final spendable = finance.profile?.spendableAmount ?? double.infinity;
+
     final title = _titleController.text;
-    final amount = double.parse(_amountController.text);
+    final amount = double.tryParse(_amountController.text) ?? 0;
+
+    // ------------------ MONTHLY LIMIT VALIDATION ------------------
+    final now = _selectedDate;
+    final monthlyTotal = provider.expenses
+        .where((e) => e.date.year == now.year && e.date.month == now.month)
+        .fold<double>(0, (sum, e) => sum + e.amount);
+
+    // If editing, subtract old expense amount to avoid double-count
+    final previousAmount = widget.expense?.amount ?? 0;
+    final projectedTotal = monthlyTotal - previousAmount + amount;
+
+    if (projectedTotal > spendable) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Cannot add expense! Monthly limit of Rs ${spendable.toStringAsFixed(2)} exceeded.',
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+    // -----------------------------------------------------------
 
     if (widget.expense == null) {
       provider.addExpense(
+        context: context,
         title: title,
         amount: amount,
         category: _selectedCategory!,
         date: _selectedDate,
       );
-      logger.i('Expense added: $title, Rs $amount');
     } else {
       provider.updateExpense(
         id: widget.expense!.id,
@@ -95,7 +130,6 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
         category: _selectedCategory!,
         date: _selectedDate,
       );
-      logger.i('Expense updated: $title, Rs $amount');
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -123,7 +157,6 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
           title: Text(isEditing ? 'Edit Expense' : 'Add Expense'),
           centerTitle: true,
           backgroundColor: Colors.teal[600],
-          elevation: 0,
         ),
         body: GestureDetector(
           onTap: () => FocusScope.of(context).unfocus(),
@@ -152,6 +185,14 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                               _buildTitleField(),
                               const SizedBox(height: 20),
                               _buildAmountField(),
+                              if (_warningAmount != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Text(
+                                    'Amount exceeds your spendable by Rs ${_warningAmount!.toStringAsFixed(2)}!',
+                                    style: const TextStyle(color: Colors.red),
+                                  ),
+                                ),
                               const SizedBox(height: 20),
                               _buildCategoryField(),
                               const SizedBox(height: 20),
@@ -183,19 +224,74 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
   }
 
   Widget _buildAmountField() {
-    return TextFormField(
-      controller: _amountController,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: _inputDecoration(
-        label: 'Amount',
-        hint: 'Enter amount',
-        prefix: 'Rs ',
-      ),
-      validator: (value) {
-        if (value == null || value.trim().isEmpty) return 'Amount is required';
-        if (double.tryParse(value) == null) return 'Enter a valid number';
-        return null;
-      },
+    final provider = context.read<ExpenseProvider>();
+    final finance = context.watch<FinanceProvider>();
+    final spendable = finance.profile?.spendableAmount ?? double.infinity;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextFormField(
+          controller: _amountController,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: _inputDecoration(
+            label: 'Amount',
+            hint: 'Enter amount',
+            prefix: 'Rs ',
+          ),
+          validator: (value) {
+            if (value == null || value.trim().isEmpty)
+              return 'Amount is required';
+            final amt = double.tryParse(value);
+            if (amt == null) return 'Enter a valid number';
+
+            // Monthly total check
+            final now = _selectedDate;
+            final monthlyTotal = provider.expenses
+                .where(
+                  (e) => e.date.year == now.year && e.date.month == now.month,
+                )
+                .fold<double>(0, (sum, e) => sum + e.amount);
+
+            final previousAmount = widget.expense?.amount ?? 0;
+            final projectedTotal = monthlyTotal - previousAmount + amt;
+
+            if (projectedTotal > spendable) {
+              return 'Exceeds monthly spendable limit of Rs ${spendable.toStringAsFixed(2)}';
+            }
+            return null;
+          },
+          onChanged: (_) =>
+              setState(() {}), // triggers rebuild for live feedback
+        ),
+        const SizedBox(height: 6),
+        Builder(
+          builder: (context) {
+            final amt = double.tryParse(_amountController.text) ?? 0;
+            final now = _selectedDate;
+            final monthlyTotal = provider.expenses
+                .where(
+                  (e) => e.date.year == now.year && e.date.month == now.month,
+                )
+                .fold<double>(0, (sum, e) => sum + e.amount);
+            final previousAmount = widget.expense?.amount ?? 0;
+            final projectedTotal = monthlyTotal - previousAmount + amt;
+
+            if (projectedTotal > spendable) {
+              return Text(
+                'Warning: This will exceed your monthly limit!',
+                style: const TextStyle(color: Colors.red, fontSize: 13),
+              );
+            } else if (projectedTotal > 0.9 * spendable) {
+              return Text(
+                'Caution: You are nearing your monthly limit.',
+                style: const TextStyle(color: Colors.orange, fontSize: 13),
+              );
+            }
+            return const SizedBox.shrink();
+          },
+        ),
+      ],
     );
   }
 
