@@ -20,12 +20,14 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.expense_tracker"
-          minSdkVersion =22
-         targetSdkVersion flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
-    }
+    applicationId = "com.example.expense_tracker"
+
+    minSdkVersion(flutter.minSdkVersion)
+    targetSdkVersion(flutter.targetSdkVersion)
+
+    versionCode = flutter.versionCode
+    versionName = flutter.versionName
+}
 
     buildTypes {
         release {

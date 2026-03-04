@@ -4,6 +4,7 @@ import '../../finance/providers/finance_provider.dart';
 import '../providers/expense_provider.dart';
 import '../models/expense.dart';
 import '../../finance/screens/finance_setup_screen.dart';
+import '../../dayend/providers/dayend_provider.dart';
 import 'expense_form_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -14,6 +15,7 @@ class DashboardScreen extends StatelessWidget {
     final expenses = context.watch<ExpenseProvider>().expenses;
     final financeProvider = context.watch<FinanceProvider>();
     final financeProfile = financeProvider.profile;
+    final dayEnd = context.watch<DayEndProvider>();
 
     final totalAmount = expenses.fold<double>(0, (sum, e) => sum + e.amount);
 
@@ -35,6 +37,17 @@ class DashboardScreen extends StatelessWidget {
         title: const Text('Expense Tracker'),
         centerTitle: true,
         backgroundColor: Colors.teal[600],
+        actions: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Center(
+              child: Text(
+                '${now.day}/${now.month}/${now.year}',
+                style: const TextStyle(fontSize: 16, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
@@ -44,30 +57,36 @@ class DashboardScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // ------------------ Finance Card ------------------
-                if (financeProfile == null)
-                  _setupFinanceCard(context)
-                else
-                  _financeCard(financeProfile),
+                // ---------------- Finance Setup Card ----------------
+                if (financeProfile == null) _setupFinanceCard(context),
 
                 const SizedBox(height: 16),
 
+                // ---------------- Total & Monthly Cards Side by Side ----------------
                 if (financeProfile != null)
-                  _totalCard(
-                    context,
-                    totalAmount,
-                    financeProfile.spendableAmount,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _totalCard(
+                          context,
+                          totalAmount,
+                          financeProfile.spendableAmount,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _monthlyCard(
+                          context,
+                          monthlyTotal,
+                          financeProfile.spendableAmount,
+                        ),
+                      ),
+                    ],
                   ),
+
                 const SizedBox(height: 16),
 
-                if (financeProfile != null)
-                  _monthlyCard(
-                    context,
-                    monthlyTotal,
-                    financeProfile.spendableAmount,
-                  ),
-                const SizedBox(height: 16),
-
+                // ---------------- Recent Expenses ----------------
                 if (recentExpenses.isNotEmpty) ...[
                   Text(
                     'Recent Expenses',
@@ -81,18 +100,75 @@ class DashboardScreen extends StatelessWidget {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.teal[600],
-        child: const Icon(Icons.add),
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ExpenseFormScreen()),
+
+      // ---------------- Floating Buttons ----------------
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton(
+            heroTag: "add_expense",
+            backgroundColor: Colors.teal[600],
+            child: const Icon(Icons.add),
+            onPressed: () {
+              if (!dayEnd.canAddExpense()) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Day is closed. Cannot add expense.'),
+                  ),
+                );
+                return;
+              }
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ExpenseFormScreen()),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton(
+            heroTag: "day_end",
+            backgroundColor: Colors.orange[600],
+            child: const Icon(Icons.today),
+            onPressed: () => _confirmDayEnd(context),
+          ),
+        ],
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+    );
+  }
+
+  // ---------------- Confirm Day End ----------------
+  void _confirmDayEnd(BuildContext context) {
+    final dayEnd = context.read<DayEndProvider>();
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Close Today?'),
+        content: const Text(
+          'After closing, no more expenses can be added for today.',
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              dayEnd.closeToday();
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Day closed successfully')),
+              );
+            },
+            child: const Text('Confirm'),
+          ),
+        ],
       ),
     );
   }
 
-  // ------------------ Expense Card ------------------
+  // ---------------- Expense Card ----------------
   Widget _expenseCard(BuildContext context, Expense e) {
     final provider = context.read<ExpenseProvider>();
 
@@ -159,7 +235,7 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  // ------------------ Total Card ------------------
+  // ---------------- Total Card ----------------
   Widget _totalCard(BuildContext context, double total, double spendableLimit) {
     final progress = (total / spendableLimit).clamp(0.0, 1.0);
 
@@ -168,13 +244,13 @@ class DashboardScreen extends StatelessWidget {
 
     if (progress >= 1) {
       progressColor = Colors.red;
-      message = 'You exceeded your spendable amount!';
+      message = 'Exceeded spendable amount!';
     } else if (progress >= 0.9) {
       progressColor = Colors.orange;
-      message = 'Near your spendable limit!';
+      message = 'Near spendable limit!';
     } else {
       progressColor = Colors.white;
-      message = 'You are within your limit.';
+      message = 'Within limit.';
     }
 
     return Card(
@@ -182,7 +258,7 @@ class DashboardScreen extends StatelessWidget {
       elevation: 6,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -194,12 +270,12 @@ class DashboardScreen extends StatelessWidget {
             Text(
               'Rs ${total.toStringAsFixed(2)} / Rs ${spendableLimit.toStringAsFixed(2)}',
               style: const TextStyle(
-                fontSize: 28,
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: LinearProgressIndicator(
@@ -217,7 +293,7 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  // ------------------ Monthly Card ------------------
+  // ---------------- Monthly Card ----------------
   Widget _monthlyCard(
     BuildContext context,
     double monthlyTotal,
@@ -229,15 +305,15 @@ class DashboardScreen extends StatelessWidget {
     if (monthlyTotal > spendableLimit) {
       cardColor = Colors.red[400]!;
       message =
-          'You exceeded your spendable amount by Rs ${(monthlyTotal - spendableLimit).toStringAsFixed(2)}!';
+          'Exceeded by Rs ${(monthlyTotal - spendableLimit).toStringAsFixed(2)}';
     } else if (monthlyTotal > 0.9 * spendableLimit) {
       cardColor = Colors.orange[400]!;
       message =
-          'Near your spendable limit! Rs ${(spendableLimit - monthlyTotal).toStringAsFixed(2)} remaining.';
+          'Near limit! Rs ${(spendableLimit - monthlyTotal).toStringAsFixed(2)} remaining.';
     } else {
       cardColor = Colors.teal[600]!;
       message =
-          'Within your spendable amount. Rs ${(spendableLimit - monthlyTotal).toStringAsFixed(2)} remaining.';
+          'Within limit. Rs ${(spendableLimit - monthlyTotal).toStringAsFixed(2)} remaining.';
     }
 
     return Card(
@@ -259,7 +335,7 @@ class DashboardScreen extends StatelessWidget {
             Text(
               'Rs ${monthlyTotal.toStringAsFixed(2)} / Rs ${spendableLimit.toStringAsFixed(2)}',
               style: const TextStyle(
-                fontSize: 22,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
@@ -275,31 +351,7 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _financeCard(financeProfile) => Card(
-    elevation: 4,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-    child: Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Monthly Income: Rs ${financeProfile.monthlyIncome.toStringAsFixed(2)}',
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Savings (${financeProfile.savingsPercentage}%): Rs ${financeProfile.savingsAmount.toStringAsFixed(2)}',
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Spendable: Rs ${financeProfile.spendableAmount.toStringAsFixed(2)}',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    ),
-  );
-
+  // ---------------- Finance Setup Card ----------------
   Widget _setupFinanceCard(BuildContext context) => Card(
     elevation: 4,
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -314,6 +366,7 @@ class DashboardScreen extends StatelessWidget {
     ),
   );
 
+  // ---------------- Helpers ----------------
   String _formatDate(DateTime d) => '${d.day}/${d.month}/${d.year}';
 
   IconData _categoryIcon(String c) {

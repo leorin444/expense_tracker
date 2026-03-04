@@ -5,6 +5,8 @@ import 'features/expense/providers/expense_provider.dart';
 import 'features/expense/screens/dashboard_screen.dart';
 import 'features/expense/models/expense.dart';
 import 'features/finance/providers/finance_provider.dart';
+import 'features/discipline/providers/discipline_provider.dart';
+import 'features/dayend/providers/dayend_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,6 +20,8 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => ExpenseProvider()),
         ChangeNotifierProvider(create: (_) => FinanceProvider()),
+        ChangeNotifierProvider(create: (_) => DisciplineProvider()),
+        ChangeNotifierProvider(create: (_) => DayEndProvider()),
       ],
       child: const MyApp(),
     ),
