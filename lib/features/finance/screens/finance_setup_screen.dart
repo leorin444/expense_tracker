@@ -30,11 +30,12 @@ class _FinanceSetupScreenState extends State<FinanceSetupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: const Text('Finance Setup'),
         centerTitle: true,
-        backgroundColor: Colors.teal[600],
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -75,15 +76,16 @@ class _FinanceSetupScreenState extends State<FinanceSetupScreen> {
         child: ElevatedButton(
           onPressed: _saveFinance,
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.teal[600],
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            foregroundColor: Theme.of(context).colorScheme.onPrimary,
             padding: const EdgeInsets.symmetric(vertical: 16),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
           ),
-          child: const Text(
+          child: Text(
             'Save Finance Settings',
-            style: TextStyle(fontSize: 18, color: Colors.white),
+            style: TextStyle(fontSize: 18, color: Theme.of(context).colorScheme.onPrimary),
           ),
         ),
       ),
@@ -111,7 +113,6 @@ class _FinanceSetupScreenState extends State<FinanceSetupScreen> {
                 prefixText: 'Rs ',
                 hintText: 'Enter your monthly income',
                 filled: true,
-                fillColor: Colors.grey[50],
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -135,7 +136,6 @@ class _FinanceSetupScreenState extends State<FinanceSetupScreen> {
 
   // ---------------- SAVINGS CARD ----------------
   Widget _savingsCard() {
-    final maxSlider = _income > 0 ? _income : 100;
     final spendableWarning = _spendableAmount < 0.1 * _income;
 
     return Card(
@@ -156,6 +156,7 @@ class _FinanceSetupScreenState extends State<FinanceSetupScreen> {
               max: 100, // max percentage
               divisions: 100,
               label: '${_savingsPercentage.toStringAsFixed(0)}%',
+              activeColor: Theme.of(context).colorScheme.primary,
               onChanged: _income > 0
                   ? (v) {
                       setState(() => _savingsPercentage = v);

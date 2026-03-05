@@ -29,9 +29,8 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
   ];
 
   String? _selectedCategory;
-  DateTime _selectedDate = DateTime.now();
 
-  double? _warningAmount;
+  DateTime _selectedDate = DateTime.now();
 
   @override
   void initState() {
@@ -50,18 +49,8 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
   }
 
   void _checkAmount() {
-    final finance = context.read<FinanceProvider>();
-    final spendable = finance.profile?.spendableAmount ?? double.infinity;
-
-    final input = double.tryParse(_amountController.text);
-
-    setState(() {
-      if (input != null && input > spendable) {
-        _warningAmount = input - spendable;
-      } else {
-        _warningAmount = null;
-      }
-    });
+    // Left intentionally blank if we just wanted a listener to trigger build 
+    // or we can remove the listener entirely since Form validator handles it on submit.
   }
 
   @override
@@ -171,10 +160,11 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
     final spendable = finance.profile?.spendableAmount ?? double.infinity;
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: Text(isEditing ? 'Edit Expense' : 'Add Expense'),
-        backgroundColor: Colors.teal,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
         centerTitle: true,
       ),
       body: GestureDetector(
@@ -293,7 +283,6 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
 
                     const SizedBox(height: 20),
 
-                    // CATEGORY
                     DropdownButtonFormField<String>(
                       value: _selectedCategory,
                       decoration: const InputDecoration(
@@ -341,12 +330,13 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                       child: ElevatedButton(
                         onPressed: _saveExpense,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.teal,
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          foregroundColor: Theme.of(context).colorScheme.onPrimary,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
                         child: Text(
                           isEditing ? 'Update Expense' : 'Save Expense',
-                          style: const TextStyle(fontSize: 16),
+                          style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onPrimary),
                         ),
                       ),
                     ),

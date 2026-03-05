@@ -1,0 +1,4 @@
+﻿Analyzing 3 items...                                            
+
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\expense\screens\dashboard_screen.dart:255:57 - deprecated_member_use
+

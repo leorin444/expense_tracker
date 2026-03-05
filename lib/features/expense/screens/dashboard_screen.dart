@@ -5,6 +5,8 @@ import '../providers/expense_provider.dart';
 import '../models/expense.dart';
 import '../../finance/screens/finance_setup_screen.dart';
 import '../../dayend/providers/dayend_provider.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../../shared/theme/theme_provider.dart';
 import 'expense_form_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -32,20 +34,59 @@ class DashboardScreen extends StatelessWidget {
     final recentExpenses = expenses.take(5).toList();
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: const Text('Expense Tracker'),
         centerTitle: true,
-        backgroundColor: Colors.teal[600],
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
         actions: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Center(
               child: Text(
                 '${now.day}/${now.month}/${now.year}',
-                style: const TextStyle(fontSize: 16, color: Colors.white),
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ),
               ),
             ),
+          ),
+          PopupMenuButton<String>(
+            icon: Icon(Icons.more_vert, color: Theme.of(context).colorScheme.onPrimary),
+            onSelected: (value) {
+              if (value == 'theme') {
+                context.read<ThemeProvider>().toggleTheme();
+              } else if (value == 'logout') {
+                context.read<AuthProvider>().logout();
+              }
+            },
+            itemBuilder: (BuildContext context) {
+              final isDark = context.read<ThemeProvider>().themeMode == ThemeMode.dark;
+              return [
+                PopupMenuItem<String>(
+                  value: 'theme',
+                  child: Row(
+                    children: [
+                      Icon(isDark ? Icons.light_mode : Icons.dark_mode),
+                      const SizedBox(width: 8),
+                      Text(isDark ? 'Light Mode' : 'Dark Mode'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'logout',
+                  child: Row(
+                    children: [
+                      Icon(Icons.logout),
+                      SizedBox(width: 8),
+                      Text('Logout'),
+                    ],
+                  ),
+                ),
+              ];
+            },
           ),
         ],
       ),
@@ -107,7 +148,8 @@ class DashboardScreen extends StatelessWidget {
         children: [
           FloatingActionButton(
             heroTag: "add_expense",
-            backgroundColor: Colors.teal[600],
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            foregroundColor: Theme.of(context).colorScheme.onPrimary,
             child: const Icon(Icons.add),
             onPressed: () {
               if (!dayEnd.canAddExpense()) {
@@ -199,10 +241,10 @@ class DashboardScreen extends StatelessWidget {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.symmetric(horizontal: 20),
         decoration: BoxDecoration(
-          color: Colors.red,
+          color: Theme.of(context).colorScheme.error,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Icon(Icons.delete, color: Colors.white),
+        child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
       ),
       onDismissed: (_) {
         provider.removeExpense(e.id);
@@ -254,7 +296,7 @@ class DashboardScreen extends StatelessWidget {
     }
 
     return Card(
-      color: Colors.teal[600],
+      color: Theme.of(context).colorScheme.primary,
       elevation: 6,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
@@ -262,17 +304,18 @@ class DashboardScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Total Expenses',
-              style: TextStyle(color: Colors.white70),
+              style: TextStyle(
+                  color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.8)),
             ),
             const SizedBox(height: 8),
             Text(
               'Rs ${total.toStringAsFixed(2)} / Rs ${spendableLimit.toStringAsFixed(2)}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.onPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -281,12 +324,14 @@ class DashboardScreen extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: progress,
                 minHeight: 12,
-                backgroundColor: Colors.white24,
+                backgroundColor:
+                    Theme.of(context).colorScheme.onPrimary.withOpacity(0.24),
                 valueColor: AlwaysStoppedAnimation(progressColor),
               ),
             ),
             const SizedBox(height: 8),
-            Text(message, style: const TextStyle(color: Colors.white)),
+            Text(message,
+                style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
           ],
         ),
       ),
@@ -311,7 +356,7 @@ class DashboardScreen extends StatelessWidget {
       message =
           'Near limit! Rs ${(spendableLimit - monthlyTotal).toStringAsFixed(2)} remaining.';
     } else {
-      cardColor = Colors.teal[600]!;
+      cardColor = Theme.of(context).colorScheme.primary;
       message =
           'Within limit. Rs ${(spendableLimit - monthlyTotal).toStringAsFixed(2)} remaining.';
     }
@@ -329,21 +374,21 @@ class DashboardScreen extends StatelessWidget {
               'This Month',
               style: Theme.of(
                 context,
-              ).textTheme.titleMedium!.copyWith(color: Colors.white),
+              ).textTheme.titleMedium!.copyWith(color: Theme.of(context).colorScheme.onPrimary),
             ),
             const SizedBox(height: 8),
             Text(
               'Rs ${monthlyTotal.toStringAsFixed(2)} / Rs ${spendableLimit.toStringAsFixed(2)}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.onPrimary,
               ),
             ),
             const SizedBox(height: 6),
             Text(
               message,
-              style: const TextStyle(fontSize: 14, color: Colors.white),
+              style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onPrimary),
             ),
           ],
         ),

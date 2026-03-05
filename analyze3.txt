@@ -1,0 +1,6 @@
+﻿Analyzing 3 items...                                            
+
+warning - The value of the field '_warningAmount' isn't used - lib\features\expense\screens\expense_form_screen.dart:34:11 - unused_field
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\features\expense\screens\expense_form_screen.dart:299:23 - deprecated_member_use
+warning - The value of the local variable 'maxSlider' isn't used - lib\features\finance\screens\finance_setup_screen.dart:139:11 - unused_local_variable
+
