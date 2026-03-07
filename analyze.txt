@@ -1,5 +1,0 @@
-﻿Analyzing 2 items...                                            
-
-  error - Target of URI doesn't exist: 'auth_provider.dart' - lib\features\auth\screens\login_screen.dart:4:8 - uri_does_not_exist
-  error - The name 'AuthProvider' isn't a type, so it can't be used as a type argument - lib\features\auth\screens\login_screen.dart:22:40 - non_type_as_type_argument
-

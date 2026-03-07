@@ -49,7 +49,7 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
   }
 
   void _checkAmount() {
-    // Left intentionally blank if we just wanted a listener to trigger build 
+    // Left intentionally blank if we just wanted a listener to trigger build
     // or we can remove the listener entirely since Form validator handles it on submit.
   }
 
@@ -284,7 +284,7 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                     const SizedBox(height: 20),
 
                     DropdownButtonFormField<String>(
-                      value: _selectedCategory,
+                      initialValue: _selectedCategory,
                       decoration: const InputDecoration(
                         labelText: 'Category',
                         border: OutlineInputBorder(),
@@ -330,13 +330,20 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                       child: ElevatedButton(
                         onPressed: _saveExpense,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).colorScheme.primary,
-                          foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.primary,
+                          foregroundColor: Theme.of(
+                            context,
+                          ).colorScheme.onPrimary,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
                         child: Text(
                           isEditing ? 'Update Expense' : 'Save Expense',
-                          style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onPrimary),
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Theme.of(context).colorScheme.onPrimary,
+                          ),
                         ),
                       ),
                     ),

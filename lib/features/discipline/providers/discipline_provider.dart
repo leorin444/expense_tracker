@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../models/daily_status.dart';
-import '../../expense/providers/expense_provider.dart';
 
 class DisciplineProvider extends ChangeNotifier {
   final List<DailyStatus> _history = [];
