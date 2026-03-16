@@ -85,7 +85,10 @@ class _FinanceSetupScreenState extends State<FinanceSetupScreen> {
           ),
           child: Text(
             'Save Finance Settings',
-            style: TextStyle(fontSize: 18, color: Theme.of(context).colorScheme.onPrimary),
+            style: TextStyle(
+              fontSize: 18,
+              color: Theme.of(context).colorScheme.onPrimary,
+            ),
           ),
         ),
       ),
@@ -150,6 +153,48 @@ class _FinanceSetupScreenState extends State<FinanceSetupScreen> {
               'Savings: ${_savingsPercentage.toStringAsFixed(0)}%',
               style: const TextStyle(fontSize: 16),
             ),
+            const SizedBox(height: 8),
+            // Increment/Decrement buttons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  onPressed: _income > 0 && _savingsPercentage > 0
+                      ? () {
+                          setState(
+                            () => _savingsPercentage = (_savingsPercentage - 1)
+                                .clamp(0, 100),
+                          );
+                        }
+                      : null,
+                  icon: const Icon(Icons.remove_circle_outline),
+                  iconSize: 32,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 16),
+                Text(
+                  '${_savingsPercentage.toStringAsFixed(0)}%',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                IconButton(
+                  onPressed: _income > 0 && _savingsPercentage < 100
+                      ? () {
+                          setState(
+                            () => _savingsPercentage = (_savingsPercentage + 1)
+                                .clamp(0, 100),
+                          );
+                        }
+                      : null,
+                  icon: const Icon(Icons.add_circle_outline),
+                  iconSize: 32,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ],
+            ),
             Slider(
               value: _savingsPercentage.clamp(0, 100),
               min: 0,
@@ -186,7 +231,7 @@ class _FinanceSetupScreenState extends State<FinanceSetupScreen> {
     );
   }
 
-  void _saveFinance() {
+  Future<void> _saveFinance() async {
     if (!_formKey.currentState!.validate()) return;
     if (_savingsAmount > _income) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -199,7 +244,12 @@ class _FinanceSetupScreenState extends State<FinanceSetupScreen> {
     }
 
     final provider = context.read<FinanceProvider>();
-    provider.setupFinance(income: _income, savingsPercent: _savingsPercentage);
+    await provider.setupFinance(
+      income: _income,
+      savingsPercent: _savingsPercentage,
+    );
+
+    if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(

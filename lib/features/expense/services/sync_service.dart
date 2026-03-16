@@ -1,81 +1,72 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive/hive.dart';
+import 'package:flutter/foundation.dart';
 import '../models/expense.dart';
 
 class SyncService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final Box<Expense> _expenseBox = Hive.box<Expense>('expensesBox');
+  FirebaseFirestore? _firestore;
 
-  // ------------------------- UPLOAD SINGLE EXPENSE -------------------------
+  FirebaseFirestore get firestore => _firestore ??= FirebaseFirestore.instance;
+
+  Box<Expense> get _expenseBox => Hive.box<Expense>('expensesBox');
+
+  /// Upload single expense per user
   Future<void> uploadExpense(Expense expense) async {
     try {
-      await _firestore
+      await firestore
+          .collection('users')
+          .doc(expense.userId)
           .collection('expenses')
           .doc(expense.id)
           .set(expense.toMap());
+
+      _expenseBox.put(expense.id, expense); // still store locally
     } catch (e) {
-      // Error uploading expense
+      debugPrint('Error uploading expense: $e');
     }
   }
 
-  // ------------------------- FETCH EXPENSES FROM CLOUD -------------------------
-  Future<void> fetchExpenses() async {
+  /// Fetch all cloud expenses for a given user
+  Future<List<Expense>> fetchExpenses({required String userId}) async {
     try {
-      final snapshot = await _firestore.collection('expenses').get();
+      final snapshot = await firestore
+          .collection('users')
+          .doc(userId)
+          .collection('expenses')
+          .get();
 
-      for (var doc in snapshot.docs) {
-        final expense = ExpenseFirestore.fromMap(doc.data());
-        _expenseBox.put(expense.id, expense);
+      final expenses = snapshot.docs
+          .map((doc) => Expense.fromMap(doc.data()))
+          .toList();
+
+      // Update local Hive box
+      for (var exp in expenses) {
+        _expenseBox.put(exp.id, exp);
       }
+
+      return expenses;
     } catch (e) {
-      // Error fetching expenses
+      debugPrint('Error fetching expenses: $e');
+      return [];
     }
   }
 
-  // ------------------------- SYNC LOCAL EXPENSES TO CLOUD -------------------------
-  Future<void> syncExpenses() async {
+  /// Delete expense for a user
+  Future<void> deleteExpense(Expense expense) async {
     try {
-      for (var expense in _expenseBox.values) {
-        await uploadExpense(expense);
-      }
+      await firestore
+          .collection('users')
+          .doc(expense.userId)
+          .collection('expenses')
+          .doc(expense.id)
+          .delete();
+
+      _expenseBox.delete(expense.id);
     } catch (e) {
-      // Error syncing expenses
+      debugPrint('Error deleting expense: $e');
     }
   }
 
-  // ------------------------- DELETE EXPENSE -------------------------
-  Future<void> deleteExpense(String id) async {
-    try {
-      await _firestore.collection('expenses').doc(id).delete();
-    } catch (e) {
-      // Error deleting expense
-    }
-
-    // Also remove locally
-    await _expenseBox.delete(id);
-  }
-}
-
-// ------------------- Expense ↔ Firestore Mappings -------------------
-
-extension ExpenseFirestore on Expense {
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'title': title,
-      'amount': amount,
-      'category': category,
-      'date': date.toIso8601String(),
-    };
-  }
-
-  static Expense fromMap(Map<String, dynamic> map) {
-    return Expense(
-      id: map['id'] ?? '',
-      title: map['title'] ?? '',
-      amount: (map['amount'] ?? 0).toDouble(),
-      category: map['category'] ?? '',
-      date: DateTime.parse(map['date']),
-    );
-  }
+  Future<void> syncExpenses({String? userId}) async {}
 }

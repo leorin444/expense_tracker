@@ -29,7 +29,7 @@ class AnalyticsScreen extends StatelessWidget {
             "Monthly Spending",
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 16),
           _MonthlyBarChart(expenses: expenses),
           const SizedBox(height: 20),
           const Text(
@@ -115,7 +115,7 @@ class _MonthlyBarChart extends StatelessWidget {
     final displayData = data.take(30).toList();
 
     return SizedBox(
-      height: 200,
+      height: 250,
       child: BarChart(
         BarChartData(
           alignment: BarChartAlignment.spaceAround,

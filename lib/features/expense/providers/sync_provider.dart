@@ -3,14 +3,20 @@ import 'package:hive/hive.dart';
 import '../models/expense.dart';
 
 class SyncService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final Box<Expense> _expenseBox = Hive.box<Expense>('expensesBox');
+  FirebaseFirestore? _firestore;
+
+  FirebaseFirestore get firestore {
+    _firestore ??= FirebaseFirestore.instance;
+    return _firestore!;
+  }
+
+  Box<Expense> get _expenseBox => Hive.box<Expense>('expensesBox');
 
   /// Upload all local expenses to Firestore
   Future<void> syncAllToCloud() async {
     try {
       for (var expense in _expenseBox.values) {
-        await _firestore
+        await firestore
             .collection('expenses')
             .doc(expense.id)
             .set(expense.toMap());
@@ -22,7 +28,7 @@ class SyncService {
 
   /// Listen to Firestore and update local Hive box
   void listenToCloudChanges() {
-    _firestore.collection('expenses').snapshots().listen((snapshot) {
+    firestore.collection('expenses').snapshots().listen((snapshot) {
       for (var docChange in snapshot.docChanges) {
         final data = docChange.doc.data();
         if (data == null) continue;
@@ -45,7 +51,7 @@ class SyncService {
   /// Add or update a single expense in cloud
   Future<void> syncExpense(Expense expense) async {
     try {
-      await _firestore
+      await firestore
           .collection('expenses')
           .doc(expense.id)
           .set(expense.toMap());
@@ -57,7 +63,7 @@ class SyncService {
   /// Delete a single expense from cloud
   Future<void> deleteExpense(String id) async {
     try {
-      await _firestore.collection('expenses').doc(id).delete();
+      await firestore.collection('expenses').doc(id).delete();
     } catch (e) {
       // Error deleting expense in cloud
     }
@@ -80,6 +86,7 @@ extension ExpenseFirestore on Expense {
   static Expense fromMap(Map<String, dynamic> map) {
     return Expense(
       id: map['id'] ?? '',
+      userId: map['userid'] ?? '',
       title: map['title'] ?? '',
       amount: (map['amount'] ?? 0).toDouble(),
       category: map['category'] ?? '',

@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AuthProvider with ChangeNotifier {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  FirebaseAuth? _auth;
+
+  FirebaseAuth get auth {
+    _auth ??= FirebaseAuth.instance;
+    return _auth!;
+  }
 
   User? _user;
   bool _isLoading = false;
@@ -10,7 +15,7 @@ class AuthProvider with ChangeNotifier {
 
   AuthProvider() {
     // Listen to auth state changes
-    _auth.authStateChanges().listen((user) {
+    auth.authStateChanges().listen((user) {
       _user = user;
       notifyListeners();
     });
@@ -31,8 +36,8 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      await _auth.signInWithEmailAndPassword(email: email, password: password);
-      _user = _auth.currentUser;
+      await auth.signInWithEmailAndPassword(email: email, password: password);
+      _user = auth.currentUser;
       return true;
     } on FirebaseAuthException catch (e) {
       _error = e.message;
@@ -53,11 +58,11 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      await _auth.createUserWithEmailAndPassword(
+      await auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-      _user = _auth.currentUser;
+      _user = auth.currentUser;
       return true;
     } on FirebaseAuthException catch (e) {
       _error = e.message;
@@ -73,7 +78,7 @@ class AuthProvider with ChangeNotifier {
 
   /// Logout current user
   Future<void> logout() async {
-    await _auth.signOut();
+    await auth.signOut();
     _user = null;
     notifyListeners();
   }

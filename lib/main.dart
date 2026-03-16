@@ -1,11 +1,14 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:intl/intl.dart';
 
 import 'features/expense/models/expense.dart';
+import 'features/finance/models/finance_profile.dart';
 import 'features/expense/providers/expense_provider.dart';
 import 'features/expense/screens/dashboard_screen.dart';
 import 'features/expense/screens/heatmap_calendar_screen.dart';
@@ -37,7 +40,9 @@ void main() async {
   // ---------------- HIVE INIT ----------------
   await Hive.initFlutter();
   Hive.registerAdapter(ExpenseAdapter());
+  Hive.registerAdapter(FinanceProfileAdapter());
   await Hive.openBox<Expense>('expensesBox');
+  await Hive.openBox<FinanceProfile>('financeProfilesBox');
 
   // ---------------- DATA LAYER ----------------
   final datasource = ExpenseLocalDataSource();
@@ -49,7 +54,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => FinanceProvider()),
         ChangeNotifierProvider(create: (_) => DisciplineProvider()),
         ChangeNotifierProvider(create: (_) => DayEndProvider()),
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider<AuthProvider>(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AnalyticsProvider()),
         ChangeNotifierProvider(create: (_) => ExpenseProvider(repository)),
@@ -72,11 +77,11 @@ class _MyAppState extends State<MyApp> {
     super.initState();
 
     // Auto sync after app start
-    Future.microtask(() async {
-      final provider = context.read<ExpenseProvider>();
+    //   Future.microtask(() async {
+    //     final provider = context.read<ExpenseProvider>();
 
-      await provider.syncAllExpenses();
-    });
+    //     await provider.syncAllExpenses();
+    //   });
   }
 
   @override
@@ -107,11 +112,20 @@ class _MyAppState extends State<MyApp> {
 
           routes: {'/register': (context) => const RegisterScreen()},
 
-          home: Consumer<AuthProvider>(
-            builder: (context, auth, _) {
-              if (auth.isLoggedIn) {
+          home: StreamBuilder(
+            stream: FirebaseAuth.instance.authStateChanges(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
+
+              if (snapshot.hasData) {
+                // user logged in
                 return const MainScreen();
               }
+
               return const LoginScreen();
             },
           ),
@@ -152,8 +166,25 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_titles[_currentIndex]),
+        centerTitle: true,
         backgroundColor: theme.colorScheme.primary,
         foregroundColor: theme.colorScheme.onPrimary,
+        actions: _currentIndex == 0
+            ? [
+                Padding(
+                  padding: const EdgeInsets.only(right: 16.0),
+                  child: Center(
+                    child: Text(
+                      'Date: ${DateFormat('yyyy-MM-dd').format(DateTime.now())}',
+                      style: TextStyle(
+                        color: theme.colorScheme.onPrimary,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ),
+              ]
+            : null,
       ),
 
       body: _screens[_currentIndex],
@@ -162,7 +193,8 @@ class _MainScreenState extends State<MainScreen> {
         currentIndex: _currentIndex,
         selectedItemColor: theme.colorScheme.primary,
         unselectedItemColor: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-        showUnselectedLabels: true,
+        showUnselectedLabels: false,
+        showSelectedLabels: true,
 
         onTap: (index) {
           setState(() {

@@ -3,18 +3,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:intl/intl.dart';
 
 import '../providers/expense_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
+
 import '../../finance/providers/finance_provider.dart';
 import '../../dayend/providers/dayend_provider.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../../shared/theme/theme_provider.dart';
 import '../models/expense.dart';
 import 'expense_form_screen.dart';
 import '../../finance/screens/finance_setup_screen.dart';
-import '../screens/expense_calendar_screen.dart';
-import '../../export/expense_export_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -24,6 +22,23 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  String getFirstName() {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) return "User";
+
+    if (user.displayName != null && user.displayName!.isNotEmpty) {
+      return user.displayName!.split(" ").first;
+    }
+
+    if (user.email != null) {
+      final name = user.email!.split('@').first;
+      return name[0].toUpperCase() + name.substring(1);
+    }
+
+    return "User";
+  }
+
   @override
   void initState() {
     super.initState();
@@ -32,6 +47,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
       await provider.loadExpenses();
       await provider.fetchCloudExpenses(); // fetch from cloud on start
     });
+
+    // prompt finance setup if not configured for current user
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final finance = context.read<FinanceProvider>();
+      if (finance.profile == null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const FinanceSetupScreen()),
+        );
+      }
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final auth = context.read<AuthProvider>();
+    final dayEnd = context.read<DayEndProvider>();
+    if (auth.user != null && dayEnd.currentUserId != auth.user!.uid) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        dayEnd.setCurrentUser(auth.user!.uid);
+      });
+    }
   }
 
   @override
@@ -41,6 +79,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final financeProvider = context.watch<FinanceProvider>();
     final financeProfile = financeProvider.profile;
     final dayEnd = context.watch<DayEndProvider>();
+    final firstName = getFirstName();
 
     final totalAmount = expenses.fold<double>(0, (sum, e) => sum + e.amount);
 
@@ -60,83 +99,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: AppBar(
-        title: const Text('Money Manager'),
-        centerTitle: true,
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: onPrimary,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.calendar_month),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const ExpenseCalendarScreen(),
-                ),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.download),
-            onPressed: () {
-              final expenses = context.read<ExpenseProvider>().expenses;
-              ExportService.exportToCSV(expenses);
-            },
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Center(
-              child: Text(
-                DateFormat('dd/MM/yyyy').format(now),
-                style: TextStyle(fontSize: 16, color: onPrimary),
-              ),
-            ),
-          ),
-          PopupMenuButton<String>(
-            icon: Icon(Icons.more_vert, color: onPrimary),
-            onSelected: (value) {
-              if (value == 'theme') {
-                context.read<ThemeProvider>().toggleTheme();
-              } else if (value == 'logout') {
-                context.read<AuthProvider>().logout();
-              }
-            },
-            itemBuilder: (_) {
-              final isDark =
-                  context.read<ThemeProvider>().themeMode == ThemeMode.dark;
-              return [
-                PopupMenuItem<String>(
-                  value: 'theme',
-                  child: Row(
-                    children: [
-                      Icon(isDark ? Icons.light_mode : Icons.dark_mode),
-                      const SizedBox(width: 8),
-                      Text(isDark ? 'Light Mode' : 'Dark Mode'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem<String>(
-                  value: 'logout',
-                  child: Row(
-                    children: [
-                      Icon(Icons.logout),
-                      SizedBox(width: 8),
-                      Text('Logout'),
-                    ],
-                  ),
-                ),
-              ];
-            },
-          ),
-        ],
-      ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480),
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
             children: [
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 22,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      child: Text(
+                        firstName[0],
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Welcome",
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        Text(
+                          firstName,
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
               if (financeProfile == null) const _SetupFinanceCard(),
               const SizedBox(height: 16),
               if (financeProfile != null) ...[
@@ -458,16 +460,19 @@ class _SetupFinanceCard extends StatelessWidget {
 
 class ExpenseCard extends StatelessWidget {
   final Expense expense;
+
   const ExpenseCard({super.key, required this.expense});
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.read<ExpenseProvider>();
+    final provider = Provider.of<ExpenseProvider>(context, listen: false);
+    final messenger = ScaffoldMessenger.of(context);
     final onPrimary = Theme.of(context).colorScheme.onPrimary;
 
     return Dismissible(
       key: ValueKey(expense.id),
       direction: DismissDirection.endToStart,
+
       confirmDismiss: (_) async {
         return await showDialog<bool>(
           context: context,
@@ -488,20 +493,34 @@ class ExpenseCard extends StatelessWidget {
           ),
         );
       },
+
       onDismissed: (_) async {
         final removedExpense = expense;
+
         await provider.removeExpense(expense.id);
-        ScaffoldMessenger.of(context).showSnackBar(
+
+        messenger.clearSnackBars();
+
+        messenger.showSnackBar(
           SnackBar(
+            duration: const Duration(seconds: 3),
             content: const Text('Expense deleted!'),
+            dismissDirection: DismissDirection.horizontal,
+            behavior: SnackBarBehavior.floating,
             action: SnackBarAction(
               label: 'Undo',
-              onPressed: () async =>
-                  await provider.addExistingExpense(removedExpense),
+              onPressed: () async {
+                await provider.addExistingExpense(removedExpense);
+              },
             ),
           ),
         );
+        // ensure snackbar hides after duration in case of platform glitches
+        Future.delayed(const Duration(seconds: 3), () {
+          messenger.hideCurrentSnackBar();
+        });
       },
+
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -511,6 +530,7 @@ class ExpenseCard extends StatelessWidget {
         ),
         child: Icon(Icons.delete, color: onPrimary),
       ),
+
       child: Card(
         child: ListTile(
           leading: CircleAvatar(

@@ -40,10 +40,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = false);
 
     if (success) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Registration successful")));
-      Navigator.pop(context); // Go back to login
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Registration successful - Please login")),
+      );
+      // Sign out to prevent auto-login and redirect to login
+      await context.read<AuthProvider>().logout();
+      if (mounted) {
+        Navigator.pop(context); // Go back to login
+      }
     } else {
       ScaffoldMessenger.of(
         context,

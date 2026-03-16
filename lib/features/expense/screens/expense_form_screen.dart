@@ -73,8 +73,10 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
     }
   }
 
-  void _saveExpense() {
+  Future<void> _saveExpense() async {
     final dayEnd = context.read<DayEndProvider>();
+    final provider = context.read<ExpenseProvider>();
+    final finance = context.read<FinanceProvider>();
 
     if (!dayEnd.canAddExpense()) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -84,10 +86,7 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
     }
 
     if (!_formKey.currentState!.validate()) return;
-    if (!_formKey.currentState!.validate()) return;
 
-    final provider = context.read<ExpenseProvider>();
-    final finance = context.read<FinanceProvider>();
     final spendable = finance.profile?.spendableAmount ?? double.infinity;
 
     final title = _titleController.text.trim();
@@ -121,7 +120,7 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
     // ----------------------------------------------------------
 
     if (widget.expense == null) {
-      provider.addExpense(
+      await provider.addExpense(
         context: context,
         title: title,
         amount: amount,
@@ -129,7 +128,7 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
         date: _selectedDate,
       );
     } else {
-      provider.updateExpense(
+      await provider.updateExpense(
         id: widget.expense!.id,
         title: title,
         amount: amount,
@@ -138,17 +137,18 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
       );
     }
 
+    const snackDuration = Duration(seconds: 4);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
+        duration: snackDuration,
         content: Text(
           widget.expense == null ? 'Expense saved!' : 'Expense updated!',
         ),
       ),
     );
 
-    Future.delayed(const Duration(milliseconds: 600), () {
-      if (mounted) Navigator.pop(context);
-    });
+    if (!mounted) return;
+    Navigator.pop(context);
   }
 
   @override
@@ -328,7 +328,7 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _saveExpense,
+                        onPressed: provider.isAdding ? null : _saveExpense,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Theme.of(
                             context,
@@ -338,13 +338,24 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                           ).colorScheme.onPrimary,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
-                        child: Text(
-                          isEditing ? 'Update Expense' : 'Save Expense',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Theme.of(context).colorScheme.onPrimary,
-                          ),
-                        ),
+                        child: provider.isAdding
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                isEditing ? 'Update Expense' : 'Save Expense',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onPrimary,
+                                ),
+                              ),
                       ),
                     ),
                   ],
