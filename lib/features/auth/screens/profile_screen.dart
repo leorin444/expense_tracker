@@ -9,6 +9,7 @@ import '../providers/auth_provider.dart';
 import '../../../shared/theme/theme_provider.dart';
 import '../../finance/providers/finance_provider.dart';
 import '../../finance/screens/finance_setup_screen.dart';
+import '../../finance/screens/FinanceProfileViewScreen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -18,7 +19,8 @@ class ProfileScreen extends StatelessWidget {
     final authProvider = context.watch<AuthProvider>();
     final themeProvider = context.watch<ThemeProvider>();
     final User? user = authProvider.user;
-
+    final financeProvider = context.watch<FinanceProvider>();
+    final financeProfile = financeProvider.profile;
     if (user == null) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -76,13 +78,28 @@ class ProfileScreen extends StatelessWidget {
             child: ListTile(
               leading: const Icon(Icons.account_balance_wallet),
               title: const Text("Financial Setup"),
-              subtitle: const Text("Edit your finance configuration"),
+              subtitle: financeProfile == null
+                  ? const Text("Configure your income and savings")
+                  : Text(
+                      "Income: Rs ${financeProfile.monthlyIncome} • Savings ${financeProfile.savingsPercentage}%",
+                    ),
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const FinanceSetupScreen()),
-                );
+                if (financeProfile == null) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const FinanceSetupScreen(),
+                    ),
+                  );
+                } else {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const FinanceProfileViewScreen(),
+                    ),
+                  );
+                }
               },
             ),
           ),

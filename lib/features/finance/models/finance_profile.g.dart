@@ -17,18 +17,21 @@ class FinanceProfileAdapter extends TypeAdapter<FinanceProfile> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return FinanceProfile(
-      monthlyIncome: fields[0] as double,
-      savingsPercentage: fields[1] as double,
+      userId: fields[0] as String,
+      monthlyIncome: fields[1] as double,
+      savingsPercentage: fields[2] as double,
     );
   }
 
   @override
   void write(BinaryWriter writer, FinanceProfile obj) {
     writer
-      ..writeByte(2)
+      ..writeByte(3)
       ..writeByte(0)
-      ..write(obj.monthlyIncome)
+      ..write(obj.userId)
       ..writeByte(1)
+      ..write(obj.monthlyIncome)
+      ..writeByte(2)
       ..write(obj.savingsPercentage);
   }
 

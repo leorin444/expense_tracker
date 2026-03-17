@@ -5,63 +5,88 @@ import '../models/finance_profile.dart';
 
 class FinanceProvider with ChangeNotifier {
   static const String _boxName = 'financeProfilesBox';
+
   FinanceProfile? _profile;
   String? _currentUserId;
+
+  bool _isLoading = true;
+
+  FinanceProfile? get profile => _profile;
   String? get currentUserId => _currentUserId;
+  bool get isConfigured => _profile != null;
+  bool get isLoading => _isLoading;
+
+  late Box<FinanceProfile> _box;
+
   FinanceProvider() {
-    // listen to auth state so we can keep profiles per-user
+    _init();
+  }
+
+  Future<void> _init() async {
+    _box = Hive.box<FinanceProfile>(_boxName);
+
     FirebaseAuth.instance.authStateChanges().listen((user) {
       _handleUserChange(user?.uid);
     });
   }
 
   Future<void> _handleUserChange(String? uid) async {
+    _isLoading = true;
+    notifyListeners();
+
     _currentUserId = uid;
-    if (_currentUserId == null) {
-      // logged out, clear profile in memory
+
+    if (uid == null) {
       _profile = null;
     } else {
-      final box = await Hive.openBox<FinanceProfile>(_boxName);
-      // migrate any legacy non-user-specific profile if present
-      if (box.containsKey('profile') &&
-          !box.containsKey('profile_$_currentUserId')) {
-        final legacy = box.get('profile');
+      final key = 'profile_$uid';
+
+      // migration for old versions
+      if (_box.containsKey('profile') && !_box.containsKey(key)) {
+        final legacy = _box.get('profile');
         if (legacy != null) {
-          await box.put('profile_$_currentUserId', legacy);
+          await _box.put(key, legacy);
         }
-        // remove the old global entry so it doesn't get used again
-        await box.delete('profile');
+        await _box.delete('profile');
       }
 
-      _profile = box.get('profile_$_currentUserId');
+      _profile = _box.get(key);
     }
+
+    _isLoading = false;
     notifyListeners();
   }
-
-  FinanceProfile? get profile => _profile;
-
-  bool get isConfigured => _profile != null;
 
   Future<void> setupFinance({
     required double income,
     required double savingsPercent,
   }) async {
     if (_currentUserId == null) return;
-    _profile = FinanceProfile(
+
+    final profile = FinanceProfile(
+      userId: _currentUserId!,
       monthlyIncome: income,
       savingsPercentage: savingsPercent,
     );
-    final box = await Hive.openBox<FinanceProfile>(_boxName);
-    await box.put('profile_$_currentUserId', _profile!);
+
+    final key = 'profile_$_currentUserId';
+
+    await _box.put(key, profile);
+
+    _profile = profile;
+
     notifyListeners();
   }
 
-  void resetFinance() {
+  Future<void> resetFinance() async {
     if (_currentUserId == null) return;
+
+    final key = 'profile_$_currentUserId';
+
+    await _box.delete(key);
+
     _profile = null;
-    Hive.openBox<FinanceProfile>(
-      _boxName,
-    ).then((box) => box.delete('profile_$_currentUserId'));
+
     notifyListeners();
   }
 }

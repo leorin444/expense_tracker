@@ -49,15 +49,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
 
     // prompt finance setup if not configured for current user
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final finance = context.read<FinanceProvider>();
-      if (finance.profile == null) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const FinanceSetupScreen()),
-        );
-      }
-    });
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   final finance = context.read<FinanceProvider>();
+    //   if (finance.profile == null) {
+    //     Navigator.push(
+    //       context,
+    //       MaterialPageRoute(builder: (_) => const FinanceSetupScreen()),
+    //     );
+    //   }
+    // });
   }
 
   @override
@@ -77,10 +77,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final expenseProvider = context.watch<ExpenseProvider>();
     final expenses = expenseProvider.expenses;
     final financeProvider = context.watch<FinanceProvider>();
+    if (financeProvider.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
     final financeProfile = financeProvider.profile;
     final dayEnd = context.watch<DayEndProvider>();
     final firstName = getFirstName();
-
     final totalAmount = expenses.fold<double>(0, (sum, e) => sum + e.amount);
 
     final now = DateTime.now();

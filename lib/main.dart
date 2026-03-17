@@ -76,12 +76,9 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
 
-    // Auto sync after app start
-    //   Future.microtask(() async {
-    //     final provider = context.read<ExpenseProvider>();
-
-    //     await provider.syncAllExpenses();
-    //   });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ExpenseProvider>().syncAllExpenses();
+    });
   }
 
   @override
@@ -122,7 +119,6 @@ class _MyAppState extends State<MyApp> {
               }
 
               if (snapshot.hasData) {
-                // user logged in
                 return const MainScreen();
               }
 
