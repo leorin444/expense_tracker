@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
 import '../models/expense.dart';
 import '../repository/expense_repository.dart';
 import '../../expense/services/sync_service.dart';
@@ -11,55 +10,50 @@ import '../../finance/providers/finance_provider.dart';
 class ExpenseProvider with ChangeNotifier {
   final ExpenseRepository repository;
   final SyncService _syncService = SyncService();
-  final _uuid = const Uuid();
-
+  final Uuid _uuid = const Uuid();
   List<Expense> _expenses = [];
   List<Expense> get expenses => List.unmodifiable(_expenses);
-
   bool _isAdding = false;
   bool get isAdding => _isAdding;
-
   double _monthlyLimit = 50000;
   double get monthlyLimit => _monthlyLimit;
-
   String? _currentUserId;
-
   ExpenseProvider(this.repository) {
-    // Listen for Firebase auth changes to switch users automatically
+    // Listen for Firebase auth changes
     FirebaseAuth.instance.authStateChanges().listen((user) {
       _handleUserChange(user?.uid);
     });
   }
-
-  void setMonthlyLimit(double limit) {
-    _monthlyLimit = limit;
-    notifyListeners();
-  }
-
-  /// Called whenever the logged-in user changes
   Future<void> _handleUserChange(String? uid) async {
     _currentUserId = uid;
+    if (uid == null) {
+      _expenses = [];
+      notifyListeners();
+      return;
+    }
+    await Future.delayed(const Duration(milliseconds: 100));
     await loadExpenses();
   }
 
-  /// Load only expenses belonging to current user
   Future<void> loadExpenses() async {
     if (_currentUserId == null) {
       _expenses = [];
       notifyListeners();
       return;
     }
-
     try {
-      _expenses = repository
-          .getExpenses()
-          .where((e) => e.userId == _currentUserId)
-          .toList();
-      _expenses.sort((a, b) => b.date.compareTo(a.date));
+      final allExpenses = repository.getExpenses();
+      _expenses = allExpenses.where((e) => e.userId == _currentUserId).toList()
+        ..sort((a, b) => b.date.compareTo(a.date));
       notifyListeners();
     } catch (e) {
-      debugPrint("Error loading expenses: $e");
+      debugPrint("Load error: $e");
     }
+  }
+
+  void setMonthlyLimit(double limit) {
+    _monthlyLimit = limit;
+    notifyListeners();
   }
 
   double getMonthlySpent(DateTime date) {
@@ -69,47 +63,33 @@ class ExpenseProvider with ChangeNotifier {
   }
 
   double getRemainingBudget(DateTime date) {
-    final spent = getMonthlySpent(date);
-    return _monthlyLimit - spent;
+    return _monthlyLimit - getMonthlySpent(date);
   }
 
   List<Expense> getExpensesByDate(DateTime date) {
-    return _expenses.where((expense) {
-      return expense.date.year == date.year &&
-          expense.date.month == date.month &&
-          expense.date.day == date.day;
+    return _expenses.where((e) {
+      return e.date.year == date.year &&
+          e.date.month == date.month &&
+          e.date.day == date.day;
     }).toList();
   }
 
-  Future<void> addExpense({
+  Future<bool> addExpense({
     required BuildContext context,
     required String title,
     required double amount,
     required String category,
     required DateTime date,
   }) async {
-    if (_isAdding || _currentUserId == null) return;
-
+    if (_isAdding || _currentUserId == null) return false;
     _isAdding = true;
     notifyListeners();
-
     try {
       final finance = context.read<FinanceProvider>();
       final limit = finance.profile?.spendableAmount ?? _monthlyLimit;
-      final monthlySpent = getMonthlySpent(date);
-
-      if (monthlySpent + amount > limit) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Expense limit exceeded! Limit: Rs $limit'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-        return;
-      }
-
-      final newExpense = Expense(
+      final spent = getMonthlySpent(date);
+      if (spent + amount > limit) return false;
+      final expense = Expense(
         id: _uuid.v4(),
         userId: _currentUserId!,
         title: title,
@@ -117,17 +97,16 @@ class ExpenseProvider with ChangeNotifier {
         category: category,
         date: date,
       );
-
-      await repository.addExpense(newExpense);
-      _expenses.insert(0, newExpense);
+      await repository.addExpense(expense);
+      _expenses = [expense, ..._expenses];
       notifyListeners();
-
-      // Sync to cloud asynchronously
-      _syncService.uploadExpense(newExpense).catchError((e) {
-        debugPrint('Failed to sync expense: $e');
-      });
+      _syncService
+          .uploadExpense(expense)
+          .catchError((e) => debugPrint("Sync add failed: $e"));
+      return true;
     } catch (e) {
-      debugPrint("Error adding expense: $e");
+      debugPrint("Add error: $e");
+      return false;
     } finally {
       _isAdding = false;
       notifyListeners();
@@ -142,55 +121,50 @@ class ExpenseProvider with ChangeNotifier {
     required DateTime date,
   }) async {
     if (_currentUserId == null) return;
-
     final index = _expenses.indexWhere((e) => e.id == id);
     if (index == -1) return;
-
     try {
+      final old = _expenses[index];
       final updated = Expense(
-        id: id,
-        userId: _currentUserId!,
+        id: old.id,
+        userId: old.userId,
         title: title,
         amount: amount,
         category: category,
         date: date,
       );
-
       await repository.updateExpense(updated);
-      _expenses[index] = updated;
+      _expenses = List.from(_expenses)..[index] = updated;
       notifyListeners();
-
-      _syncService.uploadExpense(updated).catchError((e) {
-        debugPrint('Failed to sync updated expense: $e');
-      });
+      _syncService
+          .uploadExpense(updated)
+          .catchError((e) => debugPrint("Sync update failed: $e"));
     } catch (e) {
-      debugPrint("Error updating expense: $e");
+      debugPrint("Update error: $e");
     }
   }
 
   Future<void> removeExpense(String id) async {
     if (_currentUserId == null) return;
-
     try {
       await repository.deleteExpense(id);
-      _expenses.removeWhere((e) => e.id == id);
+      _expenses = _expenses.where((e) => e.id != id).toList();
       notifyListeners();
-
-      _syncService.deleteExpense(id as Expense).catchError((e) {
-        debugPrint('Failed to sync delete expense: $e');
-      });
+      _syncService
+          .deleteExpense(userId: _currentUserId!, expenseId: id)
+          .catchError((e) => debugPrint("Sync delete failed: $e"));
     } catch (e) {
-      debugPrint("Error deleting expense: $e");
+      debugPrint("Delete error: $e");
     }
   }
 
   Map<String, double> getCategoryTotals() {
     final Map<String, double> data = {};
-    for (var expense in _expenses) {
+    for (var e in _expenses) {
       data.update(
-        expense.category,
-        (value) => value + expense.amount,
-        ifAbsent: () => expense.amount,
+        e.category,
+        (value) => value + e.amount,
+        ifAbsent: () => e.amount,
       );
     }
     return data;
@@ -201,36 +175,35 @@ class ExpenseProvider with ChangeNotifier {
   }
 
   Future<void> syncAllExpenses() async {
+    if (_currentUserId == null) return;
     try {
-      await _syncService.syncExpenses(userId: _currentUserId);
+      await _syncService.syncExpenses(userId: _currentUserId!);
       await fetchCloudExpenses();
     } catch (e) {
-      debugPrint("Sync failed: $e");
+      debugPrint("Sync error: $e");
+    }
+  }
+
+  Future<void> fetchCloudExpenses() async {
+    if (_currentUserId == null) return;
+    try {
+      await _syncService.fetchExpenses(userId: _currentUserId!);
+      await loadExpenses();
+    } catch (e) {
+      debugPrint("Fetch error: $e");
     }
   }
 
   Future<void> addExistingExpense(Expense expense) async {
     try {
       await repository.addExpense(expense);
-      _expenses.insert(0, expense);
+      _expenses = [expense, ..._expenses];
       notifyListeners();
-
-      _syncService.uploadExpense(expense).catchError((e) {
-        debugPrint('Failed to sync restored expense: $e');
-      });
+      _syncService
+          .uploadExpense(expense)
+          .catchError((e) => debugPrint("Sync restore failed: $e"));
     } catch (e) {
-      debugPrint("Error restoring expense: $e");
-    }
-  }
-
-  Future<void> fetchCloudExpenses() async {
-    if (_currentUserId == null) return;
-
-    try {
-      await _syncService.fetchExpenses(userId: _currentUserId!);
-      await loadExpenses();
-    } catch (e) {
-      debugPrint("Fetch cloud expenses failed: $e");
+      debugPrint("Restore error: $e");
     }
   }
 }

@@ -76,9 +76,9 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ExpenseProvider>().syncAllExpenses();
-    });
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   context.read<ExpenseProvider>().syncAllExpenses();
+    // });
   }
 
   @override

@@ -36,6 +36,22 @@ class Expense extends HiveObject {
     int? timestamp,
   }) : timestamp = timestamp ?? DateTime.now().millisecondsSinceEpoch;
 
+  Expense copyWith({
+    String? title,
+    double? amount,
+    String? category,
+    DateTime? date,
+  }) {
+    return Expense(
+      id: id,
+      userId: userId,
+      title: title ?? this.title,
+      amount: amount ?? this.amount,
+      category: category ?? this.category,
+      date: date ?? this.date,
+    );
+  }
+
   /// Convert Expense to Map for Firestore
   Map<String, dynamic> toMap() {
     return {

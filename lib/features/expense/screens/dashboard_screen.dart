@@ -535,15 +535,19 @@ class ExpenseCard extends StatelessWidget {
 
       child: Card(
         child: ListTile(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ExpenseFormScreen(expense: expense),
+              ),
+            );
+          },
           leading: CircleAvatar(
             backgroundColor: Colors.grey.withValues(alpha: 0.2),
             child: const Icon(Icons.category),
           ),
           title: Text(expense.title),
-          subtitle: Text(
-            '${expense.category} • ${expense.date.day}/${expense.date.month}/${expense.date.year}',
-          ),
-          trailing: Text("Rs ${expense.amount.toStringAsFixed(2)}"),
         ),
       ),
     );

@@ -35,7 +35,6 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
   @override
   void initState() {
     super.initState();
-
     _titleController = TextEditingController(text: widget.expense?.title ?? '');
 
     _amountController = TextEditingController(
@@ -45,7 +44,16 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
     _selectedCategory = widget.expense?.category;
     _selectedDate = widget.expense?.date ?? DateTime.now();
 
-    _amountController.addListener(_checkAmount);
+    if (widget.expense != null) {
+      final e = widget.expense!;
+
+      _titleController.text = e.title;
+      _amountController.text = e.amount.toString();
+      _selectedCategory = e.category;
+      _selectedDate = e.date;
+    }
+
+    // _amountController.addListener(_checkAmount);
   }
 
   void _checkAmount() {
