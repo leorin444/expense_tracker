@@ -1,5 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -7,8 +9,12 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:intl/intl.dart';
 
+// 🔥 IMPORTANT: add this
+import 'features/category/models/category.dart';
+
 import 'features/expense/models/expense.dart';
 import 'features/finance/models/finance_profile.dart';
+
 import 'features/expense/providers/expense_provider.dart';
 import 'features/expense/screens/dashboard_screen.dart';
 import 'features/expense/screens/heatmap_calendar_screen.dart';
@@ -22,12 +28,12 @@ import 'features/finance/providers/finance_provider.dart';
 import 'features/discipline/providers/discipline_provider.dart';
 import 'features/dayend/providers/dayend_provider.dart';
 import 'features/auth/providers/auth_provider.dart';
+import 'features/category/providers/category_provider.dart';
 import 'features/auth/screens/register_screen.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'shared/theme/theme_provider.dart';
 import 'firebase_options.dart';
 
-// providers
 import 'features/expense/providers/analytics_provider.dart';
 
 void main() async {
@@ -39,11 +45,20 @@ void main() async {
 
   // ---------------- HIVE INIT ----------------
   await Hive.initFlutter();
-  Hive.registerAdapter(ExpenseAdapter());
-  Hive.registerAdapter(FinanceProfileAdapter());
+  if (!Hive.isAdapterRegistered(0)) {
+    Hive.registerAdapter(ExpenseAdapter());
+  }
+  if (!Hive.isAdapterRegistered(1)) {
+    Hive.registerAdapter(CategoryAdapter());
+  }
+  if (!Hive.isAdapterRegistered(2)) {
+    Hive.registerAdapter(FinanceProfileAdapter());
+  }
+
+  // 🔥 OPEN BOXES
   await Hive.openBox<Expense>('expensesBox');
   await Hive.openBox<FinanceProfile>('financeProfilesBox');
-
+  await Hive.openBox<Category>('categoriesBox'); // ✅ important
   // ---------------- DATA LAYER ----------------
   final datasource = ExpenseLocalDataSource();
   final repository = ExpenseRepository(datasource);
@@ -56,6 +71,13 @@ void main() async {
         ChangeNotifierProvider(create: (_) => DayEndProvider()),
         ChangeNotifierProvider<AuthProvider>(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(
+          create: (_) {
+            final provider = CategoryProvider();
+            provider.init(); // 🔥 important
+            return provider;
+          },
+        ),
         ChangeNotifierProvider(create: (_) => AnalyticsProvider()),
         ChangeNotifierProvider(create: (_) => ExpenseProvider(repository)),
       ],

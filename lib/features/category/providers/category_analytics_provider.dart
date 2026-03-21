@@ -1,27 +1,36 @@
 import 'package:flutter/material.dart';
-import '../../expense/providers/expense_provider.dart';
 
-class CategoryAnalyticsProvider with ChangeNotifier {
-  final ExpenseProvider expenseProvider;
+class CategoryProvider with ChangeNotifier {
+  final List<String> _categories = [
+    'Food',
+    'Transport',
+    'Bills',
+    'Shopping',
+    'Other',
+  ];
 
-  CategoryAnalyticsProvider(this.expenseProvider);
+  List<String> get categories => List.unmodifiable(_categories);
 
-  Map<String, double> get categoryTotals {
-    final data = <String, double>{};
-    for (var expense in expenseProvider.expenses) {
-      data.update(
-        expense.category,
-        (value) => value + expense.amount,
-        ifAbsent: () => expense.amount,
-      );
-    }
-    return data;
+  void addCategory(String category) {
+    if (category.trim().isEmpty) return;
+    if (_categories.contains(category)) return;
+
+    _categories.add(category);
+    notifyListeners();
   }
 
-  double getTotalAmount() {
-    return expenseProvider.expenses.fold(
-      0.0,
-      (previousValue, element) => previousValue + element.amount,
-    );
+  void updateCategory(int index, String newName) {
+    if (newName.trim().isEmpty) return;
+    if (index < 0 || index >= _categories.length) return;
+
+    _categories[index] = newName;
+    notifyListeners();
+  }
+
+  void deleteCategory(int index) {
+    if (index < 0 || index >= _categories.length) return;
+
+    _categories.removeAt(index);
+    notifyListeners();
   }
 }

@@ -14,19 +14,32 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-
+  final _confirmPasswordController = TextEditingController();
+  bool _showPassword = false;
   bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
 
   Future<void> _handleRegister() async {
     FocusScope.of(context).unfocus();
 
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
+    final confirmPassword = _confirmPasswordController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Email and password cannot be empty")),
-      );
+    if (email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
+      _showSnackBar("All fields are required");
+      return;
+    }
+
+    if (password != confirmPassword) {
+      _showSnackBar("Passwords do not match");
       return;
     }
 
@@ -40,31 +53,49 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = false);
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Registration successful - Please login")),
-      );
-      // Sign out to prevent auto-login and redirect to login
+      _showSnackBar("Registration successful - Please login");
       await context.read<AuthProvider>().logout();
-      if (mounted) {
-        Navigator.pop(context); // Go back to login
-      }
+      if (mounted) Navigator.pop(context);
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Registration failed")));
+      _showSnackBar("Registration failed");
     }
   }
 
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    Widget buildTextField({
+      required TextEditingController controller,
+      required String label,
+      required Icon prefixIcon,
+      bool isPassword = false,
+    }) {
+      return TextField(
+        controller: controller,
+        obscureText: isPassword ? !_showPassword : false,
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+          prefixIcon: prefixIcon,
+          suffixIcon: isPassword
+              ? IconButton(
+                  icon: Icon(
+                    _showPassword ? Icons.visibility_off : Icons.visibility,
+                  ),
+                  onPressed: () =>
+                      setState(() => _showPassword = !_showPassword),
+                )
+              : null,
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
@@ -90,24 +121,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 30),
-              TextField(
+              buildTextField(
                 controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: "Email",
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.email),
-                ),
-                keyboardType: TextInputType.emailAddress,
+                label: "Email",
+                prefixIcon: const Icon(Icons.email),
               ),
               const SizedBox(height: 16),
-              TextField(
+              buildTextField(
                 controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: "Password",
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.lock),
-                ),
+                label: "Password",
+                prefixIcon: const Icon(Icons.lock),
+                isPassword: true,
+              ),
+              const SizedBox(height: 16),
+              buildTextField(
+                controller: _confirmPasswordController,
+                label: "Confirm Password",
+                prefixIcon: const Icon(Icons.lock),
+                isPassword: true,
               ),
               const SizedBox(height: 30),
               SizedBox(
@@ -133,9 +164,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 16),
               TextButton(
-                onPressed: () {
-                  Navigator.pop(context); // Back to login
-                },
+                onPressed: () => Navigator.pop(context),
                 child: const Text("Already have an account? Login"),
               ),
             ],

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 
 import '../../expense/providers/expense_provider.dart';
@@ -10,9 +9,53 @@ import '../../../shared/theme/theme_provider.dart';
 import '../../finance/providers/finance_provider.dart';
 import '../../finance/screens/finance_setup_screen.dart';
 import '../../finance/screens/FinanceProfileViewScreen.dart';
+import '../../category/screens/category_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
+
+  void _showSnackBar(BuildContext context, String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _confirmReset(BuildContext context) async {
+    final financeProvider = context.read<FinanceProvider>();
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Confirm Reset"),
+        content: const Text(
+          "Are you sure you want to reset financial settings?",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Reset"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await financeProvider.resetFinance();
+      _showSnackBar(context, "Finance settings reset");
+    }
+  }
+
+  Widget _buildMenuCard(BuildContext context, List<Widget> children) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 3,
+      child: Column(children: children),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,6 +64,7 @@ class ProfileScreen extends StatelessWidget {
     final User? user = authProvider.user;
     final financeProvider = context.watch<FinanceProvider>();
     final financeProfile = financeProvider.profile;
+
     if (user == null) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -29,60 +73,44 @@ class ProfileScreen extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          /// USER PROFILE
-          Card(
-            child: ListTile(
+          /// ================= USER INFO =================
+          _buildMenuCard(context, [
+            ListTile(
               leading: CircleAvatar(
                 radius: 26,
                 backgroundColor: Theme.of(context).colorScheme.primary,
                 child: Text(
                   user.email![0].toUpperCase(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
+                  style: const TextStyle(color: Colors.white),
                 ),
               ),
-              title: Text(
-                user.email ?? '',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              title: Text(user.email ?? ''),
               subtitle: const Text("Account"),
             ),
-          ),
+          ]),
 
           const SizedBox(height: 16),
 
-          /// THEME TOGGLE
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.brightness_6),
-              title: const Text('Theme'),
-              trailing: Switch(
-                value: themeProvider.themeMode == ThemeMode.dark,
-                onChanged: (value) {
-                  themeProvider.toggleTheme();
-                },
-              ),
+          /// ================= SETTINGS =================
+          _buildMenuCard(context, [
+            SwitchListTile(
+              secondary: const Icon(Icons.brightness_6),
+              title: const Text('Dark Mode'),
+              value: themeProvider.themeMode == ThemeMode.dark,
+              onChanged: (_) => themeProvider.toggleTheme(),
             ),
-          ),
+          ]),
 
           const SizedBox(height: 16),
 
-          /// FINANCIAL SETUP
-          Card(
-            child: ListTile(
+          /// ================= FINANCE =================
+          _buildMenuCard(context, [
+            ListTile(
               leading: const Icon(Icons.account_balance_wallet),
               title: const Text("Financial Setup"),
               subtitle: financeProfile == null
-                  ? const Text("Configure your income and savings")
-                  : Text(
-                      "Income: Rs ${financeProfile.monthlyIncome} • Savings ${financeProfile.savingsPercentage}%",
-                    ),
+                  ? const Text("Not configured")
+                  : const Text("Tap to view"),
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
               onTap: () {
                 if (financeProfile == null) {
@@ -102,62 +130,67 @@ class ProfileScreen extends StatelessWidget {
                 }
               },
             ),
-          ),
+          ]),
 
           const SizedBox(height: 16),
 
-          /// EXPORT EXPENSES
-          Card(
-            child: ListTile(
+          /// ================= CATEGORY MANAGEMENT =================
+          _buildMenuCard(context, [
+            ListTile(
+              leading: const Icon(Icons.category),
+              title: const Text("Manage Categories"),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CategoryScreen()),
+                );
+              },
+            ),
+          ]),
+
+          const SizedBox(height: 16),
+
+          /// ================= DATA =================
+          _buildMenuCard(context, [
+            ListTile(
               leading: const Icon(Icons.download),
               title: const Text('Export Expenses'),
               onTap: () async {
                 final expenses = context.read<ExpenseProvider>().expenses;
 
                 if (expenses.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('No expenses to export')),
-                  );
+                  _showSnackBar(context, 'No expenses to export');
                   return;
                 }
 
                 try {
                   await ExportService.exportToCSV(expenses);
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Expenses exported successfully'),
-                    ),
-                  );
+                  _showSnackBar(context, 'Export successful');
                 } catch (e) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('Export failed: $e')));
+                  _showSnackBar(context, 'Export failed: $e');
                 }
               },
             ),
-          ),
+          ]),
 
           const SizedBox(height: 16),
 
-          /// RESET FINANCE RULES
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.refresh),
-              title: const Text('Reset Income & Saving Rules'),
-              onTap: () {
-                context.read<FinanceProvider>().resetFinance();
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Finance settings reset')),
-                );
-              },
+          /// ================= RESET =================
+          _buildMenuCard(context, [
+            ListTile(
+              leading: const Icon(Icons.refresh, color: Colors.red),
+              title: const Text(
+                'Reset Finance Settings',
+                style: TextStyle(color: Colors.red),
+              ),
+              onTap: () => _confirmReset(context),
             ),
-          ),
+          ]),
 
           const SizedBox(height: 24),
 
-          /// LOGOUT BUTTON
+          /// ================= LOGOUT =================
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -170,7 +203,6 @@ class ProfileScreen extends StatelessWidget {
               ),
               onPressed: () async {
                 await authProvider.logout();
-
                 Navigator.pushNamedAndRemoveUntil(
                   context,
                   '/login',

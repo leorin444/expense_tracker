@@ -8,7 +8,8 @@ class ExpenseListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final expenses = context.watch<ExpenseProvider>().expenses;
+    final expenseProvider = context.watch<ExpenseProvider>();
+    final expenses = expenseProvider.expenses;
 
     return Scaffold(
       appBar: AppBar(
@@ -38,48 +39,98 @@ class ExpenseListScreen extends StatelessWidget {
                 itemCount: expenses.length,
                 itemBuilder: (context, index) {
                   final e = expenses[index];
-                  return Card(
-                    elevation: 4,
-                    margin: const EdgeInsets.symmetric(vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                  return Dismissible(
+                    key: ValueKey(e.id),
+                    direction: DismissDirection.endToStart,
+                    confirmDismiss: (_) async {
+                      return await showDialog<bool>(
+                        context: context,
+                        builder: (_) => AlertDialog(
+                          title: const Text('Delete expense?'),
+                          content: const Text('This action cannot be undone.'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Cancel'),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                              ),
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text('Delete'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                    onDismissed: (_) async {
+                      final removedExpense = e;
+                      await expenseProvider.removeExpense(e.id);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          duration: const Duration(seconds: 3),
+                          content: const Text('Expense deleted!'),
+                          action: SnackBarAction(
+                            label: 'Undo',
+                            onPressed: () async => await expenseProvider
+                                .addExistingExpense(removedExpense),
+                          ),
+                        ),
+                      );
+                    },
+                    background: Container(
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.delete, color: Colors.white),
                     ),
-                    child: ListTile(
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ExpenseFormScreen(expense: e),
-                        ),
+                    child: Card(
+                      elevation: 4,
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                      title: Text(
-                        e.title,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                      child: ListTile(
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ExpenseFormScreen(expense: e),
+                          ),
                         ),
-                      ),
-                      subtitle: Text(
-                        '${e.category} • ${e.date.day}/${e.date.month}/${e.date.year}',
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
                         ),
-                        decoration: BoxDecoration(
-                          color: Colors.teal[50],
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          'Rs ${e.amount.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            color: Colors.teal[700],
+                        title: Text(
+                          e.title,
+                          style: const TextStyle(
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '${e.category} • ${e.date.day}/${e.date.month}/${e.date.year}',
+                          style: const TextStyle(color: Colors.grey),
+                        ),
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.teal[50],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            'Rs ${e.amount.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              color: Colors.teal[700],
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),

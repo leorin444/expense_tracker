@@ -14,69 +14,89 @@ class AuthProvider with ChangeNotifier {
   String? _error;
 
   AuthProvider() {
-    // Listen to auth state changes
     auth.authStateChanges().listen((user) {
       _user = user;
       notifyListeners();
     });
   }
 
+  // ================= GETTERS =================
+
   User? get user => _user;
-
   bool get isLoggedIn => _user != null;
-
   bool get isLoading => _isLoading;
-
   String? get error => _error;
 
-  /// Login with email and password
-  Future<bool> login(String email, String password) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+  // ================= PRIVATE HELPERS =================
 
-    try {
-      await auth.signInWithEmailAndPassword(email: email, password: password);
-      _user = auth.currentUser;
-      return true;
-    } on FirebaseAuthException catch (e) {
-      _error = e.message;
-      return false;
-    } catch (e) {
-      _error = "An unexpected error occurred";
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+  void _setLoading(bool value) {
+    _isLoading = value;
+    notifyListeners();
+  }
+
+  void _setError(String? message) {
+    _error = message;
+    notifyListeners();
+  }
+
+  String _mapFirebaseError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'user-not-found':
+        return "No account found with this email";
+      case 'wrong-password':
+        return "Incorrect password";
+      case 'email-already-in-use':
+        return "Email is already registered";
+      case 'invalid-email':
+        return "Invalid email format";
+      case 'weak-password':
+        return "Password should be at least 6 characters";
+      default:
+        return "Authentication failed. Please try again";
     }
   }
 
-  /// Register a new user with email and password
+  // ================= AUTH METHODS =================
+
+  Future<bool> login(String email, String password) async {
+    _setLoading(true);
+    _setError(null);
+
+    try {
+      await auth.signInWithEmailAndPassword(email: email, password: password);
+      return true;
+    } on FirebaseAuthException catch (e) {
+      _setError(_mapFirebaseError(e));
+      return false;
+    } catch (_) {
+      _setError("Something went wrong. Try again.");
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<bool> register(String email, String password) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+    _setLoading(true);
+    _setError(null);
 
     try {
       await auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-      _user = auth.currentUser;
       return true;
     } on FirebaseAuthException catch (e) {
-      _error = e.message;
+      _setError(_mapFirebaseError(e));
       return false;
-    } catch (e) {
-      _error = "An unexpected error occurred";
+    } catch (_) {
+      _setError("Something went wrong. Try again.");
       return false;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      _setLoading(false);
     }
   }
 
-  /// Logout current user
   Future<void> logout() async {
     await auth.signOut();
     _user = null;

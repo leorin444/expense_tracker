@@ -113,7 +113,10 @@ class _HeatmapCalendarScreenState extends State<HeatmapCalendarScreen> {
                   margin: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
                     color: _colorForAmount(amount),
-                    border: Border.all(color: Colors.blue, width: 2),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.primary,
+                      width: 2,
+                    ),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   alignment: Alignment.center,
@@ -144,6 +147,10 @@ class _HeatmapCalendarScreenState extends State<HeatmapCalendarScreen> {
                     itemBuilder: (_, index) {
                       final e = expenses[index];
                       return Card(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 3,
                         child: ListTile(
                           title: Text(e.title),
                           subtitle: Text(

@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -12,6 +14,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _showPassword = false;
 
   @override
   void dispose() {
@@ -21,29 +24,62 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
-    FocusScope.of(context).unfocus(); // Hide keyboard
+    FocusScope.of(context).unfocus();
 
-    final auth = context.read<AuthProvider>();
-    final success = await auth.login(
-      _emailController.text.trim(),
-      _passwordController.text.trim(),
-    );
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      _showSnackBar("Please enter both email and password");
+      return;
+    }
+
+    final auth = context.read<AuthProvider>(); // show loading
+    final success = await auth.login(email, password);
 
     if (!mounted) return;
 
     if (!success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(auth.error ?? "Login failed. Check credentials."),
-        ),
-      );
+      _showSnackBar(auth.error ?? "Login failed. Check credentials.");
     }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final theme = Theme.of(context);
+
+    Widget buildTextField({
+      required TextEditingController controller,
+      required String label,
+      required Icon prefixIcon,
+      bool isPassword = false,
+    }) {
+      return TextField(
+        controller: controller,
+        obscureText: isPassword ? !_showPassword : false,
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+          prefixIcon: prefixIcon,
+          suffixIcon: isPassword
+              ? IconButton(
+                  icon: Icon(
+                    _showPassword ? Icons.visibility_off : Icons.visibility,
+                  ),
+                  onPressed: () =>
+                      setState(() => _showPassword = !_showPassword),
+                )
+              : null,
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
@@ -69,35 +105,28 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 30),
-              TextField(
+              buildTextField(
                 controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: "Email",
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.email),
-                ),
+                label: "Email",
+                prefixIcon: const Icon(Icons.email),
               ),
               const SizedBox(height: 16),
-              TextField(
+              buildTextField(
                 controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: "Password",
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.lock),
-                ),
+                label: "Password",
+                prefixIcon: const Icon(Icons.lock),
+                isPassword: true,
               ),
               const SizedBox(height: 30),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
+                  onPressed: auth.isLoading ? null : _handleLogin,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.colorScheme.primary,
                     foregroundColor: theme.colorScheme.onPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  onPressed: auth.isLoading ? null : _handleLogin,
                   child: auth.isLoading
                       ? const SizedBox(
                           width: 24,
@@ -112,9 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 16),
               TextButton(
-                onPressed: () {
-                  Navigator.pushNamed(context, "/register");
-                },
+                onPressed: () => Navigator.pushNamed(context, "/register"),
                 child: const Text("Create Account"),
               ),
             ],

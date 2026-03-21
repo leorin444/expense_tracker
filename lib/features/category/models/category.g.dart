@@ -1,41 +1,35 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'finance_profile.dart';
+part of 'category.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class FinanceProfileAdapter extends TypeAdapter<FinanceProfile> {
+class CategoryAdapter extends TypeAdapter<Category> {
   @override
-  final int typeId = 2;
+  final int typeId = 1;
 
   @override
-  FinanceProfile read(BinaryReader reader) {
+  Category read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return FinanceProfile(
-      userId: fields[0] as String,
-      monthlyIncome: fields[1] as double,
-      savingsPercentage: fields[2] as double,
-      fixedExpenses: fields[3] as double,
+    return Category(
+      id: fields[0] as String,
+      name: fields[1] as String,
     );
   }
 
   @override
-  void write(BinaryWriter writer, FinanceProfile obj) {
+  void write(BinaryWriter writer, Category obj) {
     writer
-      ..writeByte(4)
-      ..writeByte(0)
-      ..write(obj.userId)
-      ..writeByte(1)
-      ..write(obj.monthlyIncome)
       ..writeByte(2)
-      ..write(obj.savingsPercentage)
-      ..writeByte(3)
-      ..write(obj.fixedExpenses);
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.name);
   }
 
   @override
@@ -44,7 +38,7 @@ class FinanceProfileAdapter extends TypeAdapter<FinanceProfile> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is FinanceProfileAdapter &&
+      other is CategoryAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
