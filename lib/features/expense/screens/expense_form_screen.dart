@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../finance/providers/finance_provider.dart';
+import '../../category/providers/category_provider.dart';
 import '../providers/expense_provider.dart';
 import '../models/expense.dart';
 
@@ -22,14 +23,6 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _titleController;
   late TextEditingController _amountController;
-
-  final List<String> _categories = [
-    'Food',
-    'Transport',
-    'Bills',
-    'Shopping',
-    'Other',
-  ];
 
   String? _selectedCategory;
   DateTime _selectedDate = DateTime.now();
@@ -285,21 +278,29 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                     const SizedBox(height: 20),
 
                     // Category
-                    DropdownButtonFormField<String>(
-                      value: _selectedCategory,
-                      decoration: const InputDecoration(
-                        labelText: 'Category',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: _categories
-                          .map(
-                            (c) => DropdownMenuItem(value: c, child: Text(c)),
-                          )
-                          .toList(),
-                      onChanged: (val) =>
-                          setState(() => _selectedCategory = val),
-                      validator: (val) =>
-                          val == null ? 'Select a category' : null,
+                    Consumer<CategoryProvider>(
+                      builder: (context, categoryProvider, _) {
+                        final categories = categoryProvider.categories;
+                        return DropdownButtonFormField<String>(
+                          initialValue: _selectedCategory,
+                          decoration: InputDecoration(
+                            labelText: 'Category',
+                            border: const OutlineInputBorder(),
+                          ),
+                          items: categories
+                              .map(
+                                (c) => DropdownMenuItem<String>(
+                                  value: c.name, // ✅ use property
+                                  child: Text(c.name), // ✅ no casting
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (val) =>
+                              setState(() => _selectedCategory = val),
+                          validator: (val) =>
+                              val == null ? 'Select a category' : null,
+                        );
+                      },
                     ),
                     const SizedBox(height: 20),
 

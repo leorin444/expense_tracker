@@ -1,13 +1,8 @@
-// ignore_for_file: use_build_context_synchronously
-
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:intl/intl.dart';
 
 // 🔥 IMPORTANT: add this
 import 'features/category/models/category.dart';
@@ -31,6 +26,7 @@ import 'features/auth/providers/auth_provider.dart';
 import 'features/category/providers/category_provider.dart';
 import 'features/auth/screens/register_screen.dart';
 import 'features/auth/screens/login_screen.dart';
+import 'features/auth/screens/forgot_password_screen.dart';
 import 'shared/theme/theme_provider.dart';
 import 'firebase_options.dart';
 
@@ -129,7 +125,11 @@ class _MyAppState extends State<MyApp> {
 
           themeMode: themeProvider.themeMode,
 
-          routes: {'/register': (context) => const RegisterScreen()},
+          routes: {
+            '/register': (context) => const RegisterScreen(),
+            '/forgot-password': (context) => const ForgotPasswordScreen(),
+            '/login': (context) => const LoginScreen(),
+          },
 
           home: StreamBuilder(
             stream: FirebaseAuth.instance.authStateChanges(),
@@ -187,22 +187,7 @@ class _MainScreenState extends State<MainScreen> {
         centerTitle: true,
         backgroundColor: theme.colorScheme.primary,
         foregroundColor: theme.colorScheme.onPrimary,
-        actions: _currentIndex == 0
-            ? [
-                Padding(
-                  padding: const EdgeInsets.only(right: 16.0),
-                  child: Center(
-                    child: Text(
-                      'Date: ${DateFormat('yyyy-MM-dd').format(DateTime.now())}',
-                      style: TextStyle(
-                        color: theme.colorScheme.onPrimary,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                ),
-              ]
-            : null,
+        actions: null,
       ),
 
       body: _screens[_currentIndex],

@@ -119,7 +119,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: Padding(
                     padding: EdgeInsets.all(20),
                     child: Column(
-                      children: const [
+                      children: [
                         Icon(Icons.receipt_long, size: 40, color: Colors.grey),
                         SizedBox(height: 10),
                         Text("No expenses yet"),
@@ -154,13 +154,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               );
             },
           ),
-          const SizedBox(height: 12),
-          FloatingActionButton(
-            heroTag: "reset_finance",
-            backgroundColor: Colors.orange[600],
-            child: const Icon(Icons.refresh),
-            onPressed: () => _confirmResetFinance(context, financeProvider),
-          ),
         ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
@@ -168,6 +161,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildUserHeader(String firstName) {
+    final now = DateTime.now();
+    final currentDate = "Date: ${now.year}/${now.month}/${now.day}";
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
@@ -184,17 +179,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text("Welcome", style: Theme.of(context).textTheme.bodySmall),
-              Text(
-                firstName,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-              ),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("Welcome", style: Theme.of(context).textTheme.bodySmall),
+                Text(
+                  firstName,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.calendar_today,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  currentDate,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -233,7 +256,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.red.withOpacity(0.1),
+              color: Colors.red.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Row(
@@ -621,7 +644,7 @@ class ExpenseCard extends StatelessWidget {
             );
           },
           leading: CircleAvatar(
-            backgroundColor: Colors.grey.withOpacity(0.2),
+            backgroundColor: Colors.grey.withValues(alpha: 0.2),
             child: const Icon(Icons.category),
           ),
           title: Text(expense.title),

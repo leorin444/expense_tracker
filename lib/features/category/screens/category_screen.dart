@@ -3,9 +3,12 @@ import 'package:provider/provider.dart';
 
 import '../providers/category_provider.dart';
 import '../models/category.dart';
+import 'package:expense_tracker/main.dart';
 
 class CategoryScreen extends StatelessWidget {
-  const CategoryScreen({super.key});
+  final bool showFinishButton;
+
+  const CategoryScreen({super.key, this.showFinishButton = false});
 
   void _showCategoryDialog(BuildContext context, {Category? category}) {
     final controller = TextEditingController(text: category?.name ?? '');
@@ -35,7 +38,7 @@ class CategoryScreen extends StatelessWidget {
               } else {
                 await provider.updateCategory(category.id, value);
               }
-
+              if (!context.mounted) return;
               Navigator.pop(context);
             },
             child: const Text("Save"),
@@ -62,7 +65,7 @@ class CategoryScreen extends StatelessWidget {
               await context.read<CategoryProvider>().deleteCategory(
                 category.id,
               );
-
+              if (!context.mounted) return;
               Navigator.pop(context);
             },
             child: const Text("Delete"),
@@ -78,26 +81,49 @@ class CategoryScreen extends StatelessWidget {
     final categories = provider.categories;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Manage Categories")),
-
+      appBar: AppBar(
+        title: const Text("Manage Categories"),
+        automaticallyImplyLeading: !showFinishButton,
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showCategoryDialog(context),
         child: const Icon(Icons.add),
       ),
-
+      bottomNavigationBar: showFinishButton
+          ? Padding(
+              padding: const EdgeInsets.all(16),
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const MainScreen()),
+                    (route) => false,
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Finish & Go to Dashboard',
+                  style: TextStyle(fontSize: 16),
+                ),
+              ),
+            )
+          : null,
       body: categories.isEmpty
           ? const Center(child: Text("No categories yet"))
           : ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: categories.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final category = categories[index];
-
                 return Card(
                   child: ListTile(
                     title: Text(category.name),
-
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [

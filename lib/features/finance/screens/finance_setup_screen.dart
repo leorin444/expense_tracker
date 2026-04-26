@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/finance_provider.dart';
+import '../../category/screens/category_screen.dart';
 
 class FinanceSetupScreen extends StatefulWidget {
   const FinanceSetupScreen({super.key});
@@ -258,6 +259,11 @@ class _FinanceSetupScreenState extends State<FinanceSetupScreen> {
       ),
     );
 
-    Navigator.pop(context);
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const CategoryScreen(showFinishButton: true),
+      ),
+    );
   }
 }

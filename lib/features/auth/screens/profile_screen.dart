@@ -45,6 +45,7 @@ class ProfileScreen extends StatelessWidget {
 
     if (confirm == true) {
       await financeProvider.resetFinance();
+      if (!context.mounted) return;
       _showSnackBar(context, "Finance settings reset");
     }
   }
@@ -166,8 +167,10 @@ class ProfileScreen extends StatelessWidget {
 
                 try {
                   await ExportService.exportToCSV(expenses);
+                  if (!context.mounted) return;
                   _showSnackBar(context, 'Export successful');
                 } catch (e) {
+                  if (!context.mounted) return;
                   _showSnackBar(context, 'Export failed: $e');
                 }
               },
@@ -203,6 +206,7 @@ class ProfileScreen extends StatelessWidget {
               ),
               onPressed: () async {
                 await authProvider.logout();
+                if (!context.mounted) return;
                 Navigator.pushNamedAndRemoveUntil(
                   context,
                   '/login',

@@ -102,4 +102,28 @@ class AuthProvider with ChangeNotifier {
     _user = null;
     notifyListeners();
   }
+
+  // ================= FORGOT PASSWORD =================
+
+  Future<bool> resetPassword(String email) async {
+    _setLoading(true);
+    _setError(null);
+
+    try {
+      await auth.sendPasswordResetEmail(email: email);
+      return true;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') {
+        _setError("No account found with this email");
+      } else {
+        _setError(_mapFirebaseError(e));
+      }
+      return false;
+    } catch (_) {
+      _setError("Something went wrong. Try again.");
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
 }

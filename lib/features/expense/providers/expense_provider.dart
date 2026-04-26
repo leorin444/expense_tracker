@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:uuid/uuid.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/expense.dart';
@@ -16,14 +15,12 @@ enum AddExpenseResult { success, cancelled, needsIncome }
 class ExpenseProvider with ChangeNotifier {
   final ExpenseRepository repository;
   final SyncService _syncService = SyncService();
-  final Uuid _uuid = const Uuid();
 
   List<Expense> _expenses = [];
   List<Expense> get expenses => List.unmodifiable(_expenses);
 
   bool _isAdding = false;
   bool get isAdding => _isAdding;
-  bool _isRetrying = false;
 
   double _monthlyLimit = 50000;
   double get monthlyLimit => _monthlyLimit;

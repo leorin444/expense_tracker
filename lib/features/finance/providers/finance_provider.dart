@@ -12,8 +12,6 @@ class FinanceProvider with ChangeNotifier {
 
   bool _isLoading = true;
 
-  late Box<FinanceProfile> _box;
-
   /// 🔥 NEW: Extra income sources
   List<Map<String, dynamic>> _extraIncomeSources = [];
 
@@ -60,7 +58,7 @@ class FinanceProvider with ChangeNotifier {
     _init();
   }
 
-  get monthlyIncome => null;
+  double? get monthlyIncome => null;
 
   Future<void> _init() async {
     _profileBox = await Hive.openBox<FinanceProfile>(_boxName);
@@ -92,7 +90,7 @@ class FinanceProvider with ChangeNotifier {
 
       if (raw != null && raw is List) {
         _extraIncomeSources = List<Map<String, dynamic>>.from(
-          (raw as List).map(
+          (raw).map(
             (e) => Map<String, dynamic>.from(e as Map<dynamic, dynamic>),
           ),
         );

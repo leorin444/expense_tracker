@@ -67,6 +67,7 @@ class ExpenseListScreen extends StatelessWidget {
                     onDismissed: (_) async {
                       final removedExpense = e;
                       await expenseProvider.removeExpense(e.id);
+                      if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           duration: const Duration(seconds: 3),

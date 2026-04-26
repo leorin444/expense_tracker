@@ -125,8 +125,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             blurRadius: 10,
             offset: const Offset(0, 4),
             color: theme.brightness == Brightness.dark
-                ? Colors.black.withOpacity(0.3)
-                : Colors.black.withOpacity(0.05),
+                ? Colors.black.withValues(alpha: 0.3)
+                : Colors.black.withValues(alpha: 0.05),
           ),
         ],
       ),
