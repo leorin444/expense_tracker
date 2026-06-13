@@ -72,7 +72,7 @@ class _LoginScreenState extends State<LoginScreen> {
           suffixIcon: isPassword
               ? IconButton(
                   icon: Icon(
-                    _showPassword ? Icons.visibility_off : Icons.visibility,
+                    _showPassword ? Icons.visibility : Icons.visibility_off,
                   ),
                   onPressed: () =>
                       setState(() => _showPassword = !_showPassword),
@@ -118,26 +118,37 @@ class _LoginScreenState extends State<LoginScreen> {
                 prefixIcon: const Icon(Icons.lock),
                 isPassword: true,
               ),
-              const SizedBox(height: 30),
-              SizedBox(
-                width: double.infinity,
+              const SizedBox(
+                height: 30,
+              ), // ← gap between password field and button
+              Align(
+                alignment: Alignment.center,
                 child: ElevatedButton(
                   onPressed: auth.isLoading ? null : _handleLogin,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.colorScheme.primary,
                     foregroundColor: theme.colorScheme.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 16,
+                      horizontal: 80,
+                    ), // ← wider
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: auth.isLoading
                       ? const SizedBox(
-                          width: 24,
-                          height: 24,
+                          width: 18,
+                          height: 18,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             color: Colors.white,
                           ),
                         )
-                      : const Text("Login", style: TextStyle(fontSize: 18)),
+                      : const Text(
+                          "Login",
+                          style: TextStyle(fontSize: 18),
+                        ), // ← bigger text
                 ),
               ),
               const SizedBox(height: 16),

@@ -39,20 +39,48 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void clearError() {
+    _error = null;
+    notifyListeners();
+  }
+
   String _mapFirebaseError(FirebaseAuthException e) {
     switch (e.code) {
+      // ── Email / account ──────────────────────────────
       case 'user-not-found':
-        return "No account found with this email";
-      case 'wrong-password':
-        return "Incorrect password";
+        return "No account found with this email address. Please register first.";
       case 'email-already-in-use':
-        return "Email is already registered";
+        return "This email is already registered. Try logging in instead.";
       case 'invalid-email':
-        return "Invalid email format";
+        return "The email address format is invalid. Please check and try again.";
+      case 'user-disabled':
+        return "This account has been disabled. Please contact support.";
+
+      // ── Password ─────────────────────────────────────
+      case 'wrong-password':
+        return "Incorrect password. Please try again or reset your password.";
       case 'weak-password':
-        return "Password should be at least 6 characters";
+        return "Password is too weak. Use at least 6 characters with letters and numbers.";
+
+      // ── Session / token ──────────────────────────────
+      case 'invalid-credential':
+        return "Your email or password is incorrect. Please double-check and try again.";
+      case 'credential-already-in-use':
+        return "This credential is already linked to another account.";
+      case 'requires-recent-login':
+        return "This action requires a recent login. Please log out and log in again.";
+
+      // ── Rate limiting ─────────────────────────────────
+      case 'too-many-requests':
+        return "Too many failed attempts. Your account is temporarily locked. Try again later or reset your password.";
+
+      // ── Network ───────────────────────────────────────
+      case 'network-request-failed':
+        return "Network error. Please check your internet connection and try again.";
+
+      // ── Fallback ──────────────────────────────────────
       default:
-        return "Authentication failed. Please try again";
+        return "Authentication error (${e.code}). Please try again.";
     }
   }
 
@@ -108,16 +136,11 @@ class AuthProvider with ChangeNotifier {
   Future<bool> resetPassword(String email) async {
     _setLoading(true);
     _setError(null);
-
     try {
       await auth.sendPasswordResetEmail(email: email);
       return true;
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found') {
-        _setError("No account found with this email");
-      } else {
-        _setError(_mapFirebaseError(e));
-      }
+      _setError(_mapFirebaseError(e));
       return false;
     } catch (_) {
       _setError("Something went wrong. Try again.");

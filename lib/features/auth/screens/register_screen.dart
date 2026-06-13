@@ -45,26 +45,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     setState(() => _isLoading = true);
 
-    final success = await context.read<AuthProvider>().register(
-      email,
-      password,
-    );
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.register(email, password);
 
     setState(() => _isLoading = false);
 
     if (success) {
       _showSnackBar("Registration successful - Please login");
-      await context.read<AuthProvider>().logout();
+      await authProvider.logout();
       if (mounted) Navigator.pop(context);
     } else {
-      _showSnackBar("Registration failed");
+      // Show the actual Firebase error message from the provider
+      final errorMessage = authProvider.error ?? "Registration failed";
+      _showSnackBar(errorMessage, isError: true);
     }
   }
 
-  void _showSnackBar(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+  void _showSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red.shade700 : null,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   @override
@@ -80,6 +85,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return TextField(
         controller: controller,
         obscureText: isPassword ? !_showPassword : false,
+        // Clear any stale error when the user starts typing
+        onChanged: (_) => context.read<AuthProvider>().clearError(),
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),
@@ -87,7 +94,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           suffixIcon: isPassword
               ? IconButton(
                   icon: Icon(
-                    _showPassword ? Icons.visibility_off : Icons.visibility,
+                    _showPassword ? Icons.visibility : Icons.visibility_off,
                   ),
                   onPressed: () =>
                       setState(() => _showPassword = !_showPassword),
@@ -141,19 +148,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 isPassword: true,
               ),
               const SizedBox(height: 30),
-              SizedBox(
-                width: double.infinity,
+              Align(
+                alignment: Alignment.center,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _handleRegister,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.colorScheme.primary,
                     foregroundColor: theme.colorScheme.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 16,
+                      horizontal: 80,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: _isLoading
                       ? const SizedBox(
-                          width: 24,
-                          height: 24,
+                          width: 18,
+                          height: 18,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             color: Colors.white,
