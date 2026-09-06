@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/expense_provider.dart';
-import '../providers/analytics_provider.dart';
 import '../widgets/charts.dart';
 
 class AnalyticsScreen extends StatefulWidget {
@@ -12,33 +11,33 @@ class AnalyticsScreen extends StatefulWidget {
 }
 
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
-  int _selectedSegment = 0;
-
   @override
   Widget build(BuildContext context) {
     final expenses = context.watch<ExpenseProvider>().expenses;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final analytics = context.watch<AnalyticsProvider>();
-    final segments = analytics.monthlySegments(expenses);
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+            /// 1. Category Pie Chart
+            _buildCard(
+              context,
+              title: "Category Breakdown",
+              subtitle: "Expense share by category",
+              child: expenses.isEmpty
+                  ? _emptyState()
+                  : CategoryPieChart(expenses: expenses, isDark: isDark),
+            ),
 
-    final hasSegments = segments.isNotEmpty;
+            const SizedBox(height: 16),
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Analytics"),
-        backgroundColor: theme.colorScheme.primary,
-        foregroundColor: theme.colorScheme.onPrimary,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            /// 🔹 WEEKLY
+            /// 2. Weekly Bar Chart
             _buildCard(
               context,
               title: "Weekly Spending",
+              subtitle: "Spending comparison for current week",
               child: expenses.isEmpty
                   ? _emptyState()
                   : WeeklyBarChart(expenses: expenses, isDark: isDark),
@@ -46,54 +45,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
             const SizedBox(height: 16),
 
-            /// 🔹 MONTHLY
+            /// 3. Spending Trend Line Chart
             _buildCard(
               context,
-              title: "Monthly Spending",
-              child: !hasSegments
-                  ? _emptyState()
-                  : Column(
-                      children: [
-                        Slider(
-                          value: _selectedSegment
-                              .clamp(0, segments.length - 1)
-                              .toDouble(),
-                          min: 0,
-                          max: (segments.length - 1).toDouble(),
-                          divisions: segments.length > 1
-                              ? segments.length - 1
-                              : 1,
-                          label: segments[_selectedSegment]['label'],
-                          onChanged: (value) {
-                            setState(() => _selectedSegment = value.toInt());
-                          },
-                        ),
-                        const SizedBox(height: 10),
-                        SizedBox(
-                          height: 220,
-                          child: SegmentBarChart(
-                            data: segments[_selectedSegment]['data'],
-                            isDark: isDark,
-                          ),
-                        ),
-                      ],
-                    ),
-            ),
-
-            const SizedBox(height: 16),
-
-            /// 🔹 CATEGORY
-            _buildCard(
-              context,
-              title: "Category Distribution",
+              title: "Spending Trend",
+              subtitle: "Trajectory across this month",
               child: expenses.isEmpty
                   ? _emptyState()
-                  : CategoryPieChart(expenses: expenses, isDark: isDark),
+                  : SpendingTrendLineChart(expenses: expenses, isDark: isDark),
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 
   /// 🔹 EMPTY STATE
@@ -106,10 +69,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  /// 🔹 REUSABLE CARD
   Widget _buildCard(
     BuildContext context, {
     required String title,
+    String? subtitle,
     required Widget child,
   }) {
     final theme = Theme.of(context);
@@ -139,6 +102,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               fontWeight: FontWeight.bold,
             ),
           ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           child,
         ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:expense_tracker/core/services/api_service.dart';
 
 class AuthProvider with ChangeNotifier {
   FirebaseAuth? _auth;
@@ -91,7 +92,21 @@ class AuthProvider with ChangeNotifier {
     _setError(null);
 
     try {
-      await auth.signInWithEmailAndPassword(email: email, password: password);
+      final credential = await auth.signInWithEmailAndPassword(email: email, password: password);
+      
+      // Upsert user in live server DB
+      if (credential.user != null) {
+        try {
+          final apiService = ApiService();
+          await apiService.post('/auth/login-sync', body: {
+            'email': credential.user!.email ?? email,
+            'firebaseUid': credential.user!.uid,
+            'lastLoginAt': DateTime.now().toIso8601String(),
+          }).timeout(const Duration(seconds: 4));
+        } catch (e) {
+          debugPrint('API login sync note: $e');
+        }
+      }
       return true;
     } on FirebaseAuthException catch (e) {
       _setError(_mapFirebaseError(e));
@@ -109,10 +124,26 @@ class AuthProvider with ChangeNotifier {
     _setError(null);
 
     try {
-      await auth.createUserWithEmailAndPassword(
+      final userCredential = await auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
+
+      // Save user to SSMS database via API
+      if (userCredential.user != null) {
+        try {
+          final apiService = ApiService();
+          await apiService.post('/auth/register', body: {
+            'email': email,
+            'password': password,
+            'firebaseUid': userCredential.user!.uid,
+          });
+        } catch (e) {
+          // Log error but don't fail auth if API fails
+          debugPrint('Failed to save user to API: $e');
+        }
+      }
+
       return true;
     } on FirebaseAuthException catch (e) {
       _setError(_mapFirebaseError(e));
@@ -129,6 +160,34 @@ class AuthProvider with ChangeNotifier {
     await auth.signOut();
     _user = null;
     notifyListeners();
+  }
+
+  /// Ensure current logged in user is synced/registered in the backend database
+  Future<bool> syncUserToDatabase() async {
+    final currentUser = auth.currentUser;
+    if (currentUser == null) return false;
+
+    try {
+      final apiService = ApiService();
+      await apiService.post('/auth/register', body: {
+        'email': currentUser.email ?? '',
+        'password': 'AppUser_${currentUser.uid.substring(0, 8)}',
+        'firebaseUid': currentUser.uid,
+      });
+      return true;
+    } on ApiException catch (e) {
+      // If user already exists in DB (409 conflict or duplicate message), it is synced
+      if (e.statusCode == 409 ||
+          e.message.toLowerCase().contains('already exists') ||
+          e.message.toLowerCase().contains('registered')) {
+        return true;
+      }
+      debugPrint('User sync to DB warning: $e');
+      return false;
+    } catch (e) {
+      debugPrint('User sync to DB failed: $e');
+      return false;
+    }
   }
 
   // ================= FORGOT PASSWORD =================

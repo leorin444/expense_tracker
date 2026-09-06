@@ -1,109 +1,155 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
+import 'package:uuid/uuid.dart';
+import '../../../core/services/hive_service.dart';
+import '../../../core/services/sync_service.dart';
+import '../../../core/services/api_service.dart';
+import '../../../core/models/sync_action.dart';
 import '../models/finance_profile.dart';
 
 class FinanceProvider with ChangeNotifier {
-  static const String _boxName = 'financeProfilesBox';
+  final Uuid _uuid = const Uuid();
 
   FinanceProfile? _profile;
   String? _currentUserId;
-
   bool _isLoading = true;
-
-  /// 🔥 NEW: Extra income sources
   List<Map<String, dynamic>> _extraIncomeSources = [];
 
-  /// ================= GETTERS =================
-
   FinanceProfile? get profile => _profile;
-
   String? get currentUserId => _currentUserId;
-
   bool get isConfigured => _profile != null;
-
   bool get isLoading => _isLoading;
-
   List<Map<String, dynamic>> get extraIncomeSources => _extraIncomeSources;
 
-  late Box<FinanceProfile> _profileBox;
-  late Box _extraIncomeBox; // dynamic box
-
-  /// 🔥 Financial Metrics
-
   double get baseIncome => _profile?.monthlyIncome ?? 0.0;
-
   double get extraIncomeTotal =>
-      _extraIncomeSources.fold(0.0, (sum, e) => sum + (e['amount'] as double));
-
-  /// ✅ FINAL TOTAL INCOME
+      _extraIncomeSources.fold(0.0, (sum, e) => sum + ((e['amount'] as num?)?.toDouble() ?? 0.0));
   double get totalIncome => baseIncome + extraIncomeTotal;
-
   double get savingsAmount =>
       totalIncome * ((_profile?.savingsPercentage ?? 0) / 100);
-
   double get fixedExpenses => _profile?.fixedExpenses ?? 0.0;
 
-  /// ✅ FINAL SPENDABLE (UPDATED LOGIC)
   double get spendableAmount {
     final value = totalIncome - savingsAmount - fixedExpenses;
-
-    return value < 0 ? 0 : value; // 🔥 prevents negative
+    return value < 0 ? 0 : value; 
   }
 
-  /// ================= INIT =================
+  double? get monthlyIncome => _profile?.monthlyIncome;
 
   FinanceProvider() {
-    _init();
-  }
-
-  double? get monthlyIncome => null;
-
-  Future<void> _init() async {
-    _profileBox = await Hive.openBox<FinanceProfile>(_boxName);
-    _extraIncomeBox = await Hive.openBox('extraIncomeBox');
-
     FirebaseAuth.instance.authStateChanges().listen((user) {
       _handleUserChange(user?.uid);
     });
   }
 
-  /// ================= USER SWITCH =================
-
   Future<void> _handleUserChange(String? uid) async {
     _isLoading = true;
     notifyListeners();
 
+    final previousUid = _currentUserId;
     _currentUserId = uid;
 
     if (uid == null) {
+      // Clear this user's finance data from local Hive on logout
+      if (previousUid != null) {
+        try {
+          final box = HiveService.getFinance();
+          await box.delete('profile_$previousUid');
+          await box.delete('extra_$previousUid');
+        } catch (_) {}
+      }
       _profile = null;
       _extraIncomeSources = [];
     } else {
-      final key = 'profile_$uid';
-      _profile = _profileBox.get(key);
-
-      /// ✅ Load extra income safely
-      final extraKey = 'extra_income_$uid';
-      final raw = _extraIncomeBox.get(extraKey);
-
-      if (raw != null && raw is List) {
-        _extraIncomeSources = List<Map<String, dynamic>>.from(
-          (raw).map(
-            (e) => Map<String, dynamic>.from(e as Map<dynamic, dynamic>),
-          ),
-        );
-      } else {
-        _extraIncomeSources = [];
-      }
+      await _loadFinanceData(uid);
     }
 
     _isLoading = false;
     notifyListeners();
   }
 
-  /// ================= SETUP =================
+  Future<void> _loadFinanceData(String uid) async {
+    try {
+      final box = HiveService.getFinance();
+      
+      final profileStr = box.get('profile_$uid');
+      if (profileStr != null) {
+        _profile = FinanceProfile.fromMap(jsonDecode(profileStr));
+      } else {
+        _profile = null;
+      }
+
+      final extraStr = box.get('extra_$uid');
+      if (extraStr != null) {
+        final List<dynamic> decoded = jsonDecode(extraStr);
+        _extraIncomeSources = List<Map<String, dynamic>>.from(decoded);
+      } else {
+        _extraIncomeSources = [];
+      }
+    } catch (e) {
+      debugPrint("Error loading finance data: $e");
+    }
+  }
+
+  /// Pull latest finance setup from server
+  Future<void> fetchFinanceFromServer(String uid) async {
+    final apiService = ApiService();
+    final box = HiveService.getFinance();
+
+    // 1. Fetch Finance Profile
+    try {
+      dynamic response;
+      try {
+        response = await apiService.get('/finance/profile?userId=$uid');
+      } catch (_) {
+        try {
+          response = await apiService.get('/finance/profile');
+        } catch (_) {}
+      }
+
+      if (response != null && response is Map<String, dynamic>) {
+        final profile = FinanceProfile.fromMap(response);
+        await box.put('profile_$uid', jsonEncode(profile.toMap()));
+        _profile = profile;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Failed to fetch finance profile from server: $e');
+    }
+
+    // 2. Fetch Extra Income Sources
+    try {
+      dynamic extraResponse;
+      try {
+        extraResponse = await apiService.get('/finance/extra-income?userId=$uid');
+      } catch (_) {
+        try {
+          extraResponse = await apiService.get('/finance/extra-income');
+        } catch (_) {}
+      }
+
+      if (extraResponse != null && extraResponse is List) {
+        final List<Map<String, dynamic>> extraList = [];
+        for (var item in extraResponse) {
+          if (item is Map<String, dynamic>) {
+            extraList.add({
+              'id': item['id']?.toString() ?? _uuid.v4(),
+              'source': item['source']?.toString() ?? 'Extra Income',
+              'amount': (item['amount'] as num?)?.toDouble() ?? 0.0,
+              'date': item['date']?.toString() ?? DateTime.now().toIso8601String(),
+              'userId': uid,
+            });
+          }
+        }
+        await box.put('extra_$uid', jsonEncode(extraList));
+        _extraIncomeSources = extraList;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Failed to fetch extra income from server: $e');
+    }
+  }
 
   Future<void> setupFinance({
     required double income,
@@ -119,16 +165,25 @@ class FinanceProvider with ChangeNotifier {
       fixedExpenses: fixedExpenses,
     );
 
-    final key = 'profile_$_currentUserId';
+    try {
+      final box = HiveService.getFinance();
+      final jsonStr = jsonEncode(profile.toMap());
+      await box.put('profile_$_currentUserId', jsonStr);
 
-    await _profileBox.put(key, profile); // ✅ FIXED
+      final syncAction = SyncAction(
+        id: _uuid.v4(),
+        collection: 'finance/profile',
+        action: 'CREATE',
+        payload: jsonStr,
+      );
+      SyncService.queueAction(syncAction);
 
-    _profile = profile;
-
-    notifyListeners();
+      _profile = profile;
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Error setting up finance: $e");
+    }
   }
-
-  /// ================= UPDATE =================
 
   Future<void> updateFinance({
     double? income,
@@ -144,50 +199,85 @@ class FinanceProvider with ChangeNotifier {
       fixedExpenses: fixedExpenses ?? _profile!.fixedExpenses,
     );
 
-    final key = 'profile_$_currentUserId';
+    try {
+      final box = HiveService.getFinance();
+      final jsonStr = jsonEncode(updated.toMap());
+      await box.put('profile_$_currentUserId', jsonStr);
 
-    await _profileBox.put(key, updated); // ✅ FIXED
+      final syncAction = SyncAction(
+        id: _uuid.v4(),
+        collection: 'finance/profile',
+        action: 'UPDATE',
+        payload: jsonStr,
+      );
+      SyncService.queueAction(syncAction);
 
-    _profile = updated;
-
-    notifyListeners();
+      _profile = updated;
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Error updating finance: $e");
+    }
   }
 
-  /// ================= 🔥 ADD EXTRA INCOME =================
-
-  void addExtraIncome({required String source, required double amount}) {
+  Future<void> addExtraIncome({required String source, required double amount}) async {
     if (_currentUserId == null) return;
 
-    final extraKey = 'extra_income_$_currentUserId';
-
     final newEntry = {
+      'id': _uuid.v4(),
       'source': source,
       'amount': amount,
       'date': DateTime.now().toIso8601String(),
+      'userId': _currentUserId,
     };
 
-    _extraIncomeSources.add(newEntry);
+    try {
+      _extraIncomeSources.add(newEntry);
+      final box = HiveService.getFinance();
+      await box.put('extra_$_currentUserId', jsonEncode(_extraIncomeSources));
 
-    // persist to Hive
-    _extraIncomeBox.put(extraKey, _extraIncomeSources);
+      final syncAction = SyncAction(
+        id: _uuid.v4(),
+        collection: 'finance/extra-income',
+        action: 'CREATE',
+        payload: jsonEncode(newEntry),
+      );
+      SyncService.queueAction(syncAction);
 
-    notifyListeners();
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Error adding extra income: $e");
+    }
   }
-
-  /// ================= RESET =================
 
   Future<void> resetFinance() async {
     if (_currentUserId == null) return;
 
-    final key = 'profile_$_currentUserId';
-    final extraKey = 'extra_income_$_currentUserId';
+    try {
+      final box = HiveService.getFinance();
+      await box.delete('profile_$_currentUserId');
+      await box.delete('extra_$_currentUserId');
 
-    await _profileBox.delete(key); // ✅ FIXED
-    await _profileBox.delete(extraKey);
+      final syncActionProfile = SyncAction(
+        id: _uuid.v4(),
+        collection: 'finance/profile',
+        action: 'DELETE',
+        payload: jsonEncode({'userId': _currentUserId}),
+      );
+      SyncService.queueAction(syncActionProfile);
 
-    _profile = null;
-    _extraIncomeSources = [];
+      final syncActionExtra = SyncAction(
+        id: _uuid.v4(),
+        collection: 'finance/extra-income',
+        action: 'DELETE',
+        payload: jsonEncode({'userId': _currentUserId}),
+      );
+      SyncService.queueAction(syncActionExtra);
 
-    notifyListeners();
+      _profile = null;
+      _extraIncomeSources = [];
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Error resetting finance: $e");
+    }
   }
 }

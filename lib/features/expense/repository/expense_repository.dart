@@ -1,41 +1,38 @@
 import '../models/expense.dart';
-import '../data/expense_local_datasource.dart';
+import '../data/expense_remote_datasource.dart';
 
 class ExpenseRepository {
-  final ExpenseLocalDataSource localDataSource;
+  final ExpenseRemoteDataSource remoteDataSource;
 
-  ExpenseRepository(this.localDataSource);
+  ExpenseRepository(this.remoteDataSource);
 
-  /// Get all expenses (legacy fallback)
-  List<Expense> getExpenses() {
-    final expenses = localDataSource.getExpenses();
+  /// Get expenses for a specific user from local store
+  Future<List<Expense>> getExpensesByUser(String userId) async {
+    final expenses = await remoteDataSource.getExpensesByUser(userId);
     expenses.sort((a, b) => b.date.compareTo(a.date));
     return expenses;
   }
 
-  /// Get expenses for a specific user
-  List<Expense> getExpensesByUser(String userId) {
-    final expenses = localDataSource
-        .getExpenses()
-        .where((e) => e.userId == userId)
-        .toList();
-
+  /// Pull latest expenses from live server and save to local store
+  Future<List<Expense>> fetchExpensesFromServer(String userId) async {
+    final expenses = await remoteDataSource.fetchExpensesFromServer(userId);
     expenses.sort((a, b) => b.date.compareTo(a.date));
     return expenses;
   }
 
   /// Add a new expense
   Future<void> addExpense(Expense expense) async {
-    await localDataSource.addExpense(expense);
+    await remoteDataSource.addExpense(expense);
   }
 
   /// Update an existing expense by id
   Future<void> updateExpense(Expense expense) async {
-    await localDataSource.updateExpense(expense);
+    await remoteDataSource.updateExpense(expense);
   }
 
   /// Delete an expense by id
   Future<void> deleteExpense(String id) async {
-    await localDataSource.deleteExpense(id);
+    await remoteDataSource.deleteExpense(id);
   }
 }
+

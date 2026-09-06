@@ -1,19 +1,7 @@
-import 'package:hive/hive.dart';
-
-part 'extra_income.g.dart';
-
-@HiveType(typeId: 5) // ⚠️ use a unique ID
 class ExtraIncome {
-  @HiveField(0)
   final String source;
-
-  @HiveField(1)
   final double amount;
-
-  @HiveField(2)
   final DateTime date;
-
-  @HiveField(3)
   final String userId;
 
   ExtraIncome({
@@ -22,4 +10,22 @@ class ExtraIncome {
     required this.date,
     required this.userId,
   });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'source': source,
+      'amount': amount,
+      'date': date.toIso8601String(),
+      'userId': userId,
+    };
+  }
+
+  factory ExtraIncome.fromMap(Map<String, dynamic> map) {
+    return ExtraIncome(
+      source: map['source'] as String,
+      amount: (map['amount'] as num).toDouble(),
+      date: DateTime.parse(map['date'] as String),
+      userId: map['userId'] as String,
+    );
+  }
 }

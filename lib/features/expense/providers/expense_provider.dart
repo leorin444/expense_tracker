@@ -6,15 +6,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/expense.dart';
 import '../repository/expense_repository.dart';
-import '../../expense/services/sync_service.dart';
 import '../../finance/providers/finance_provider.dart';
 import '../../../core/utils/expense_policy.dart';
+import '../../../core/services/hive_service.dart';
 
 enum AddExpenseResult { success, cancelled, needsIncome }
 
 class ExpenseProvider with ChangeNotifier {
   final ExpenseRepository repository;
-  final SyncService _syncService = SyncService();
 
   List<Expense> _expenses = [];
   List<Expense> get expenses => List.unmodifiable(_expenses);
@@ -38,6 +37,11 @@ class ExpenseProvider with ChangeNotifier {
     _currentUserId = uid;
 
     if (uid == null) {
+      // Clear this user's expenses from local storage on logout for security
+      try {
+        final box = HiveService.getExpenses();
+        await box.clear();
+      } catch (_) {}
       _expenses = [];
       notifyListeners();
       return;
@@ -56,10 +60,9 @@ class ExpenseProvider with ChangeNotifier {
     }
 
     try {
-      final allExpenses = repository.getExpenses();
+      final allExpenses = await repository.getExpensesByUser(_currentUserId!);
 
-      _expenses = allExpenses.where((e) => e.userId == _currentUserId).toList()
-        ..sort((a, b) => b.date.compareTo(a.date));
+      _expenses = allExpenses..sort((a, b) => b.date.compareTo(a.date));
 
       notifyListeners();
     } catch (e) {
@@ -67,23 +70,58 @@ class ExpenseProvider with ChangeNotifier {
     }
   }
 
+  /// ================= FETCH FROM SERVER =================
+  Future<void> fetchExpensesFromServer() async {
+    _currentUserId ??= FirebaseAuth.instance.currentUser?.uid;
+    if (_currentUserId == null) return;
+
+    try {
+      final serverExpenses = await repository.fetchExpensesFromServer(_currentUserId!);
+
+      if (serverExpenses.isNotEmpty) {
+        _expenses = serverExpenses..sort((a, b) => b.date.compareTo(a.date));
+        notifyListeners();
+      }
+      // If server returns empty (network blip / not synced yet), keep existing local data
+    } catch (e) {
+      debugPrint("Fetch expenses from server error: $e");
+    }
+  }
+
   /// ================= EXPORT CSV =================
-  Future<void> exportToCSV(List<Expense> expenses) async {
-    final buffer = StringBuffer();
-    buffer.writeln("Title,Amount,Category,Date");
+  Future<String?> exportToCSV(List<Expense> expenses) async {
+    try {
+      final buffer = StringBuffer();
+      buffer.writeln("Title,Amount,Category,Date");
 
-    for (var e in expenses) {
-      buffer.writeln("${e.title},${e.amount},${e.category},${e.date}");
+      for (var e in expenses) {
+        // Escape commas/quotes in fields
+        final title = '"${e.title.replaceAll('"', '""')}"';
+        final category = '"${e.category.replaceAll('"', '""')}"';
+        buffer.writeln("$title,${e.amount},$category,${e.date.toIso8601String()}");
+      }
+
+      // Choose export directory based on platform
+      String dirPath;
+      if (Platform.isAndroid) {
+        dirPath = '/storage/emulated/0/Download';
+      } else {
+        dirPath = Directory.systemTemp.path;
+      }
+
+      final directory = Directory(dirPath);
+      if (!directory.existsSync()) {
+        directory.createSync(recursive: true);
+      }
+
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final file = File('${directory.path}/expenses_$timestamp.csv');
+      await file.writeAsString(buffer.toString());
+      return file.path;
+    } catch (e) {
+      debugPrint('CSV export failed: $e');
+      return null;
     }
-
-    final directory = Directory('/storage/emulated/0/Download');
-
-    if (!directory.existsSync()) {
-      directory.createSync(recursive: true);
-    }
-
-    final file = File('${directory.path}/expenses.csv');
-    await file.writeAsString(buffer.toString());
   }
 
   /// ================= ANALYTICS =================
@@ -186,8 +224,6 @@ class ExpenseProvider with ChangeNotifier {
       _expenses = [expense, ..._expenses];
       notifyListeners();
 
-      _syncService.uploadExpense(expense);
-
       return AddExpenseResult.success;
     } catch (e) {
       return AddExpenseResult.cancelled;
@@ -228,10 +264,6 @@ class ExpenseProvider with ChangeNotifier {
       _expenses = List.from(_expenses)..[index] = updated;
 
       notifyListeners();
-
-      _syncService
-          .uploadExpense(updated)
-          .catchError((e) => debugPrint("Sync update failed: $e"));
     } catch (e) {
       debugPrint("Update error: $e");
     }
@@ -247,35 +279,8 @@ class ExpenseProvider with ChangeNotifier {
       _expenses = _expenses.where((e) => e.id != id).toList();
 
       notifyListeners();
-
-      _syncService
-          .deleteExpense(userId: _currentUserId!, expenseId: id)
-          .catchError((e) => debugPrint("Sync delete failed: $e"));
     } catch (e) {
       debugPrint("Delete error: $e");
-    }
-  }
-
-  /// ================= SYNC =================
-  Future<void> syncAllExpenses() async {
-    if (_currentUserId == null) return;
-
-    try {
-      await _syncService.syncExpenses(userId: _currentUserId!);
-      await fetchCloudExpenses();
-    } catch (e) {
-      debugPrint("Sync error: $e");
-    }
-  }
-
-  Future<void> fetchCloudExpenses() async {
-    if (_currentUserId == null) return;
-
-    try {
-      await _syncService.fetchExpenses(userId: _currentUserId!);
-      await loadExpenses();
-    } catch (e) {
-      debugPrint("Fetch error: $e");
     }
   }
 
@@ -285,10 +290,6 @@ class ExpenseProvider with ChangeNotifier {
 
       _expenses = [expense, ..._expenses];
       notifyListeners();
-
-      _syncService
-          .uploadExpense(expense)
-          .catchError((e) => debugPrint("Sync restore failed: $e"));
     } catch (e) {
       debugPrint("Restore error: $e");
     }

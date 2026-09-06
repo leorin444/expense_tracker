@@ -190,12 +190,52 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
     final userId = expenseProvider.currentUserId;
     if (userId == null) return;
 
+    final newTitle = _titleController.text.trim();
+    final newCategory = _selectedCategory!;
+
+    if (widget.expense != null) {
+      final existing = widget.expense!;
+      final bool isSameDate = existing.date.year == _selectedDate.year &&
+          existing.date.month == _selectedDate.month &&
+          existing.date.day == _selectedDate.day;
+
+      final bool hasChanges = existing.title.trim() != newTitle ||
+          existing.amount != amount ||
+          existing.category != newCategory ||
+          !isSameDate;
+
+      if (!hasChanges) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("No changes made")),
+          );
+        }
+        return;
+      }
+
+      await expenseProvider.updateExpense(
+        id: existing.id,
+        title: newTitle,
+        amount: amount,
+        category: newCategory,
+        date: _selectedDate,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Expense updated successfully")),
+        );
+        Navigator.pop(context);
+      }
+      return;
+    }
+
     final expense = Expense(
       id: const Uuid().v4(),
       userId: userId,
-      title: _titleController.text.trim(),
+      title: newTitle,
       amount: amount,
-      category: _selectedCategory!,
+      category: newCategory,
       date: _selectedDate,
     );
 
@@ -205,10 +245,6 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Expense added successfully")),
       );
-    }
-
-    // ✅ Prevent unwanted navigation unless you explicitly want it
-    if (mounted) {
       Navigator.pop(context); // go back only once
     }
   }

@@ -40,7 +40,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (!mounted) return;
 
-    if (!success) {
+    if (success) {
+      Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+    } else {
       _showSnackBar(auth.error ?? "Login failed. Check credentials.");
     }
   }

@@ -1,29 +1,10 @@
-import 'package:hive/hive.dart';
-
-part 'expense.g.dart';
-
-@HiveType(typeId: 0)
-class Expense extends HiveObject {
-  @HiveField(0)
+class Expense {
   String id;
-
-  @HiveField(1)
   String title;
-
-  @HiveField(2)
   double amount;
-
-  @HiveField(3)
   String category;
-
-  @HiveField(4)
   DateTime date;
-
-  @HiveField(5)
   int timestamp; // millisecondsSinceEpoch, used for sync conflict resolution
-
-  // NEW FIELD (user ownership)
-  @HiveField(6)
   String userId;
 
   Expense({
@@ -52,7 +33,7 @@ class Expense extends HiveObject {
     );
   }
 
-  /// Convert Expense to Map for Firestore
+  /// Convert Expense to JSON Map
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -65,17 +46,27 @@ class Expense extends HiveObject {
     };
   }
 
-  /// Create Expense from Firestore Map
+  /// Create Expense from JSON Map
   factory Expense.fromMap(Map<String, dynamic> map) {
+    DateTime parsedDate;
+    final rawDate = map['date'] ?? map['expenseDate'];
+    if (rawDate != null) {
+      parsedDate = DateTime.tryParse(rawDate.toString()) ?? DateTime.now();
+    } else {
+      parsedDate = DateTime.now();
+    }
+
+    // Prefer clientExpenseId so that server-returned expenses match the local Hive key
+    final resolvedId = (map['clientExpenseId'] ?? map['id'] ?? map['serverId'])?.toString() ?? '';
+
     return Expense(
-      id: map['id'] as String,
-      userId: map['userId'] as String,
-      title: map['title'] as String,
-      amount: (map['amount'] as num).toDouble(),
-      category: map['category'] as String,
-      date: DateTime.parse(map['date'] as String),
-      timestamp:
-          map['timestamp'] as int? ?? DateTime.now().millisecondsSinceEpoch,
+      id: resolvedId,
+      userId: (map['userId'] ?? '').toString(),
+      title: (map['title'] ?? map['note'] ?? map['description'] ?? 'Expense').toString(),
+      amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
+      category: (map['category'] ?? map['categoryName'] ?? 'Other').toString(),
+      date: parsedDate,
+      timestamp: map['timestamp'] as int? ?? DateTime.now().millisecondsSinceEpoch,
     );
   }
 }

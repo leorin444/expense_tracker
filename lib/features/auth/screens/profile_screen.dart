@@ -8,8 +8,9 @@ import '../providers/auth_provider.dart';
 import '../../../shared/theme/theme_provider.dart';
 import '../../finance/providers/finance_provider.dart';
 import '../../finance/screens/finance_setup_screen.dart';
-import '../../finance/screens/FinanceProfileViewScreen.dart';
+import '../../finance/screens/finance_profile_view_screen.dart';
 import '../../category/screens/category_screen.dart';
+import '../../sync/screens/sync_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -152,6 +153,24 @@ class ProfileScreen extends StatelessWidget {
 
           const SizedBox(height: 16),
 
+          /// ================= DATA SYNC =================
+          _buildMenuCard(context, [
+            ListTile(
+              leading: const Icon(Icons.sync_alt, color: Colors.teal),
+              title: const Text("Data Sync Center"),
+              subtitle: const Text("Manage offline queue and server sync"),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SyncScreen()),
+                );
+              },
+            ),
+          ]),
+
+          const SizedBox(height: 16),
+
           /// ================= DATA =================
           _buildMenuCard(context, [
             ListTile(
@@ -209,7 +228,7 @@ class ProfileScreen extends StatelessWidget {
                 if (!context.mounted) return;
                 Navigator.pushNamedAndRemoveUntil(
                   context,
-                  '/login',
+                  '/',
                   (route) => false,
                 );
               },
