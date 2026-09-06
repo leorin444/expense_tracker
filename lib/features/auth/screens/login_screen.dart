@@ -41,7 +41,11 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (success) {
-      Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      } else {
+        Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+      }
     } else {
       _showSnackBar(auth.error ?? "Login failed. Check credentials.");
     }
@@ -50,7 +54,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ).showSnackBar(SnackBar(content: Text(message, style: const TextStyle(fontSize: 15))));
   }
 
   @override
@@ -66,10 +70,13 @@ class _LoginScreenState extends State<LoginScreen> {
     }) {
       return TextField(
         controller: controller,
+        style: const TextStyle(fontSize: 17),
         obscureText: isPassword ? !_showPassword : false,
         decoration: InputDecoration(
           labelText: label,
-          border: const OutlineInputBorder(),
+          labelStyle: const TextStyle(fontSize: 16),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           prefixIcon: prefixIcon,
           suffixIcon: isPassword
               ? IconButton(
@@ -87,73 +94,93 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
-        title: const Text("Expense Tracker"),
-        backgroundColor: theme.colorScheme.primary,
-        foregroundColor: theme.colorScheme.onPrimary,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
       ),
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.account_balance_wallet,
-                size: 80,
-                color: theme.colorScheme.primary,
+              Container(
+                width: 112,
+                height: 112,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(
+                    color: Colors.grey.shade300,
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.10),
+                      blurRadius: 20,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(4),
+                child: Image.asset(
+                  'assets/icons/app_icon_foreground.png',
+                  fit: BoxFit.contain,
+                ),
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 20),
               const Text(
                 "Expense Tracker",
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: -0.5),
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 6),
+              Text(
+                "Welcome back! Log in to your account.",
+                style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 32),
               buildTextField(
                 controller: _emailController,
-                label: "Email",
-                prefixIcon: const Icon(Icons.email),
+                label: "Email Address",
+                prefixIcon: const Icon(Icons.email_outlined, size: 24),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               buildTextField(
                 controller: _passwordController,
                 label: "Password",
-                prefixIcon: const Icon(Icons.lock),
+                prefixIcon: const Icon(Icons.lock_outline, size: 24),
                 isPassword: true,
               ),
-              const SizedBox(
-                height: 30,
-              ), // ← gap between password field and button
-              Align(
-                alignment: Alignment.center,
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity,
                 child: ElevatedButton(
                   onPressed: auth.isLoading ? null : _handleLogin,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.colorScheme.primary,
                     foregroundColor: theme.colorScheme.onPrimary,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 16,
-                      horizontal: 80,
-                    ), // ← wider
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
+                    elevation: 2,
                   ),
                   child: auth.isLoading
                       ? const SizedBox(
-                          width: 18,
-                          height: 18,
+                          width: 22,
+                          height: 22,
                           child: CircularProgressIndicator(
-                            strokeWidth: 2,
+                            strokeWidth: 2.5,
                             color: Colors.white,
                           ),
                         )
                       : const Text(
                           "Login",
-                          style: TextStyle(fontSize: 18),
-                        ), // ← bigger text
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               TextButton(
                 onPressed: () => Navigator.push(
                   context,
@@ -161,12 +188,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     builder: (_) => const ForgotPasswordScreen(),
                   ),
                 ),
-                child: const Text("Forgot Password?"),
+                child: const Text("Forgot Password?", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               ),
               const SizedBox(height: 8),
               TextButton(
                 onPressed: () => Navigator.pushNamed(context, "/register"),
-                child: const Text("Create Account"),
+                child: const Text("Don't have an account? Sign Up", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               ),
             ],
           ),

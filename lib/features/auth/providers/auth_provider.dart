@@ -94,18 +94,17 @@ class AuthProvider with ChangeNotifier {
     try {
       final credential = await auth.signInWithEmailAndPassword(email: email, password: password);
       
-      // Upsert user in live server DB
+      // Upsert user in live server DB asynchronously so login is instant and never gets stuck
       if (credential.user != null) {
-        try {
-          final apiService = ApiService();
-          await apiService.post('/auth/login-sync', body: {
-            'email': credential.user!.email ?? email,
-            'firebaseUid': credential.user!.uid,
-            'lastLoginAt': DateTime.now().toIso8601String(),
-          }).timeout(const Duration(seconds: 4));
-        } catch (e) {
+        final user = credential.user!;
+        ApiService().post('/auth/login-sync', body: {
+          'email': user.email ?? email,
+          'firebaseUid': user.uid,
+          'lastLoginAt': DateTime.now().toIso8601String(),
+        }).timeout(const Duration(seconds: 4)).catchError((e) {
           debugPrint('API login sync note: $e');
-        }
+          return null;
+        });
       }
       return true;
     } on FirebaseAuthException catch (e) {
